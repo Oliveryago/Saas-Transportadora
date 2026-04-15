@@ -1,0 +1,486 @@
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useFuelRecords } from "../hooks/useFuelRecords";
+import { useVehicles } from "../hooks/useVehicles";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  Plus, LogOut, ArrowLeft, Trash2, Gauge, Info,
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon
+} from "lucide-react";
+import FuelModal from "../components/fuel/FuelModal";
+
+interface TrechoData {
+  recordId: string;
+  vehicleId: string;
+  date: string;
+  kmInicial: number;
+  kmFinal: number;
+  distancia: number;
+  litros: number;
+  kmPorLitro: number;
+  valorTotal: number;
+  posto: string;
+  isFirst: boolean;
+}
+
+export function Fuel() {
+  const { user, signOut } = useAuth();
+  const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords();
+  const { vehicles } = useVehicles();
+  const navigate = useNavigate();
+  const [fuelModalOpen, setFuelModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
+
+  const getVehicle = (vehicleId: string) => vehicles.find((v) => v.id === vehicleId);
+  const getVehicleName = (vehicleId: string) => {
+    const v = getVehicle(vehicleId);
+    return v ? `${v.license_plate} - ${v.model}` : "Veículo desconhecido";
+  };
+
+  // Build trecho data per vehicle
+  const trechosPerVehicle = useMemo(() => {
+    const vehicleIds = [...new Set(records.map((r) => r.vehicle_id))];
+    const result: Record<string, TrechoData[]> = {};
+
+    vehicleIds.forEach((vehicleId) => {
+      const vehicleRecords = records
+        .filter((r) => r.vehicle_id === vehicleId)
+        .sort((a, b) => a.km_digital - b.km_digital);
+
+      result[vehicleId] = vehicleRecords.map((record, index) => {
+        if (index === 0) {
+          return {
+            recordId: record.id,
+            vehicleId: record.vehicle_id,
+            date: record.created_at,
+            kmInicial: 0,
+            kmFinal: record.km_digital,
+            distancia: 0,
+            litros: record.liters,
+            kmPorLitro: 0,
+            valorTotal: Number(record.value_brl || 0),
+            posto: record.fuel_station || "-",
+            isFirst: true,
+          };
+        }
+
+        const prev = vehicleRecords[index - 1];
+        const distancia = record.km_digital - prev.km_digital;
+        const kmPorLitro = distancia > 0 && record.liters > 0 ? distancia / record.liters : 0;
+
+        return {
+          recordId: record.id,
+          vehicleId: record.vehicle_id,
+          date: record.created_at,
+          kmInicial: prev.km_digital,
+          kmFinal: record.km_digital,
+          distancia,
+          litros: record.liters,
+          kmPorLitro,
+          valorTotal: Number(record.value_brl || 0),
+          posto: record.fuel_station || "-",
+          isFirst: false,
+        };
+      });
+    });
+
+    return result;
+  }, [records]);
+
+  // Stats
+  const allTrechos = Object.values(trechosPerVehicle).flat();
+  const trechosComConsumo = allTrechos.filter((t) => !t.isFirst && t.kmPorLitro > 0);
+
+  const avgKmL = trechosComConsumo.length > 0
+    ? trechosComConsumo.reduce((s, t) => s + t.kmPorLitro, 0) / trechosComConsumo.length
+    : 0;
+
+  const totalLiters = records.reduce((sum, r) => sum + Number(r.liters || 0), 0);
+  const totalCost = records.reduce((sum, r) => sum + Number(r.value_brl || 0), 0);
+  const totalKm = trechosComConsumo.reduce((s, t) => s + t.distancia, 0);
+
+  function getConsumoBadge(kml: number) {
+    if (kml >= 3) return { label: "Bom", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: TrendingUp, dot: "bg-emerald-500" };
+    if (kml >= 2) return { label: "Normal", color: "bg-amber-100 text-amber-800 border-amber-200", icon: Minus, dot: "bg-amber-500" };
+    return { label: "Alto consumo", color: "bg-red-100 text-red-800 border-red-200", icon: TrendingDown, dot: "bg-red-500" };
+  }
+
+  // Average per vehicle
+  function getVehicleAvgKmL(vehicleId: string) {
+    const trechos = (trechosPerVehicle[vehicleId] || []).filter((t) => !t.isFirst && t.kmPorLitro > 0);
+    if (trechos.length === 0) return null;
+    return trechos.reduce((s, t) => s + t.kmPorLitro, 0) / trechos.length;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <button onClick={() => navigate("/")} className="text-gray-600 hover:text-gray-900">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2">
+                <Gauge className="w-5 h-5 text-green-600" />
+                <h1 className="text-xl font-bold text-gray-900">Abastecimentos</h1>
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-6">
+              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+              <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow p-5">
+            <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Registros</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{records.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5">
+            <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Litros Total</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalLiters.toFixed(0)}L</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5">
+            <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Gasto Total</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5">
+            <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">KM Percorridos</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalKm.toLocaleString("pt-BR")}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-5 border-l-4 border-emerald-500 col-span-2 md:col-span-1">
+            <div className="flex items-center gap-1">
+              <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Média Geral</p>
+              <div className="relative">
+                <button
+                  className="text-gray-400 hover:text-gray-600"
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                  onClick={() => setShowTooltip(!showTooltip)}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+                {showTooltip && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50">
+                    <div className="font-semibold mb-1">ℹ️ Como é calculado?</div>
+                    <p>O consumo é calculado com base na distância percorrida desde o último abastecimento e nos litros abastecidos neste registro.</p>
+                    <p className="mt-1 text-gray-300">Cada trecho = KM atual − KM anterior ÷ litros abastecidos.</p>
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <p className="text-2xl font-bold text-emerald-600">{avgKmL > 0 ? avgKmL.toFixed(2) : "-"}</p>
+              <span className="text-sm text-gray-400">km/l</span>
+            </div>
+            {avgKmL > 0 && (
+              <div className="mt-1">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getConsumoBadge(avgKmL).color}`}>
+                  {(() => { const Badge = getConsumoBadge(avgKmL); return <Badge.icon className="w-3 h-3" />; })()}
+                  {getConsumoBadge(avgKmL).label}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => { setEditingRecord(null); setFuelModalOpen(true); }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Abastecimento
+          </button>
+
+          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
+            <button
+              onClick={() => setViewMode("timeline")}
+              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              Timeline
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              Tabela
+            </button>
+          </div>
+        </div>
+
+        {records.length === 0 ? (
+          <div className="bg-white rounded-lg shadow text-center py-16">
+            <Gauge className="w-16 h-16 mx-auto text-gray-200 mb-4" />
+            <p className="text-gray-500 text-lg">Nenhum abastecimento registrado ainda</p>
+            <p className="text-gray-400 text-sm mt-1">Adicione o primeiro para começar a acompanhar o consumo</p>
+          </div>
+        ) : viewMode === "timeline" ? (
+          /* =================== TIMELINE VIEW =================== */
+          <div className="space-y-6">
+            {Object.entries(trechosPerVehicle).map(([vehicleId, trechos]) => {
+              const vehicle = getVehicle(vehicleId);
+              const avgVehicle = getVehicleAvgKmL(vehicleId);
+              const isExpanded = expandedVehicle === vehicleId || Object.keys(trechosPerVehicle).length === 1;
+
+              return (
+                <div key={vehicleId} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  {/* Vehicle header */}
+                  <button
+                    onClick={() => setExpandedVehicle(isExpanded ? null : vehicleId)}
+                    className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
+                        <FuelIcon className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-gray-900">{vehicle?.license_plate || "?"}</p>
+                        <p className="text-sm text-gray-500">{vehicle?.model || "Desconhecido"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs text-gray-400 uppercase">Abastecimentos</p>
+                        <p className="font-bold text-gray-900">{trechos.length}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-400 uppercase">Consumo Médio</p>
+                        {avgVehicle ? (
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-900">{avgVehicle.toFixed(2)} km/l</p>
+                            <span className={`w-2.5 h-2.5 rounded-full ${getConsumoBadge(avgVehicle).dot}`}></span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400">Aguardando dados</p>
+                        )}
+                      </div>
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                    </div>
+                  </button>
+
+                  {/* Timeline trechos */}
+                  {isExpanded && (
+                    <div className="border-t px-5 pb-5">
+                      <div className="relative">
+                        {/* Vertical line */}
+                        <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                        {[...trechos].reverse().map((trecho, index) => {
+                          const badge = !trecho.isFirst && trecho.kmPorLitro > 0 ? getConsumoBadge(trecho.kmPorLitro) : null;
+
+                          return (
+                            <div key={trecho.recordId} className="relative pl-12 py-4">
+                              {/* Timeline dot */}
+                              <div className={`absolute left-3.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow ${trecho.isFirst ? "bg-gray-400" : badge ? badge.dot : "bg-gray-400"
+                                }`} style={{ top: "1.5rem" }}></div>
+
+                              {/* Card */}
+                              <div className={`rounded-lg border p-4 transition hover:shadow-sm ${trecho.isFirst ? "bg-gray-50 border-gray-200" : "bg-white border-gray-200"
+                                }`}>
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  {/* Left: date and station */}
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {new Date(trecho.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-0.5">Posto: {trecho.posto}</p>
+                                  </div>
+
+                                  {/* Right: value and actions */}
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium text-gray-700">
+                                      R$ {trecho.valorTotal.toFixed(2)}
+                                    </span>
+                                    <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Trecho details */}
+                                {trecho.isFirst ? (
+                                  <div className="mt-3 flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                    <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                    <p className="text-xs text-blue-700">
+                                      Consumo ainda não disponível — aguardando próximo abastecimento
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="mt-3">
+                                    <div className="flex items-center gap-1.5 mb-2">
+                                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Consumo do trecho anterior
+                                      </span>
+                                      {badge && (
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${badge.color}`}>
+                                          {(() => { const Icon = badge.icon; return <Icon className="w-3 h-3" />; })()}
+                                          {badge.label}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Journey visualization */}
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <div className="flex-1 bg-gray-100 rounded-lg p-2.5 text-center">
+                                        <p className="text-xs text-gray-400">KM Inicial</p>
+                                        <p className="font-bold text-gray-700 text-sm">{trecho.kmInicial.toLocaleString("pt-BR")}</p>
+                                      </div>
+                                      <div className="flex flex-col items-center px-1">
+                                        <span className="text-xs font-bold text-emerald-600">{trecho.distancia.toLocaleString("pt-BR")} km</span>
+                                        <div className="w-8 h-0.5 bg-emerald-400 my-0.5 relative">
+                                          <div className="absolute right-0 -top-1 w-0 h-0 border-t-[4px] border-b-[4px] border-l-[6px] border-transparent border-l-emerald-400"></div>
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 bg-gray-100 rounded-lg p-2.5 text-center">
+                                        <p className="text-xs text-gray-400">KM Final</p>
+                                        <p className="font-bold text-gray-700 text-sm">{trecho.kmFinal.toLocaleString("pt-BR")}</p>
+                                      </div>
+                                    </div>
+
+                                    {/* Metrics row */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                                        <p className="text-xs text-gray-400">Distância</p>
+                                        <p className="font-semibold text-gray-800 text-sm">{trecho.distancia.toLocaleString("pt-BR")} km</p>
+                                      </div>
+                                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                                        <p className="text-xs text-gray-400">Litros</p>
+                                        <p className="font-semibold text-gray-800 text-sm">{trecho.litros.toFixed(1)} L</p>
+                                      </div>
+                                      <div className={`rounded-lg p-2 text-center ${trecho.kmPorLitro >= 3 ? "bg-emerald-50" : trecho.kmPorLitro >= 2 ? "bg-amber-50" : "bg-red-50"
+                                        }`}>
+                                        <p className="text-xs text-gray-400">Resultado</p>
+                                        <p className={`font-bold text-sm ${trecho.kmPorLitro >= 3 ? "text-emerald-700" : trecho.kmPorLitro >= 2 ? "text-amber-700" : "text-red-700"
+                                          }`}>
+                                          {trecho.kmPorLitro.toFixed(2)} km/l
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* KM and liters pill */}
+                                <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+                                  <span>KM: {trecho.kmFinal.toLocaleString("pt-BR")}</span>
+                                  <span>•</span>
+                                  <span>{trecho.litros.toFixed(1)} litros</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* =================== TABLE VIEW =================== */
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Veículo</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">KM Inicial</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">KM Final</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Distância</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Litros</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Valor</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      <div className="flex items-center justify-center gap-1">
+                        Consumo do Trecho
+                        <div className="relative group">
+                          <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+                            Desempenho entre abastecimentos: distância ÷ litros
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Posto</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {allTrechos.map((trecho) => {
+                    const badge = !trecho.isFirst && trecho.kmPorLitro > 0 ? getConsumoBadge(trecho.kmPorLitro) : null;
+                    return (
+                      <tr key={trecho.recordId} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{getVehicleName(trecho.vehicleId)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{new Date(trecho.date).toLocaleDateString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 text-right">{trecho.isFirst ? "-" : trecho.kmInicial.toLocaleString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">{trecho.kmFinal.toLocaleString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {trecho.isFirst ? (
+                            <span className="text-gray-400">-</span>
+                          ) : (
+                            <span className="font-medium text-gray-900">{trecho.distancia.toLocaleString("pt-BR")} km</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.litros.toFixed(1)} L</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">R$ {trecho.valorTotal.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          {trecho.isFirst ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs border border-blue-100">
+                              <Info className="w-3 h-3" />
+                              Aguardando
+                            </span>
+                          ) : badge ? (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.color}`}>
+                              {(() => { const Icon = badge.icon; return <Icon className="w-3 h-3" />; })()}
+                              {trecho.kmPorLitro.toFixed(2)} km/l
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{trecho.posto}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <FuelModal
+          open={fuelModalOpen}
+          onClose={() => { setFuelModalOpen(false); setEditingRecord(null); }}
+          editingRecord={editingRecord}
+          vehicles={vehicles}
+          addRecord={addRecord}
+          updateRecord={updateRecord}
+        />
+      </main>
+    </div>
+  );
+}
+
+export default Fuel;
