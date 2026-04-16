@@ -57,7 +57,6 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
                 last_change_km: lastChangeKm || undefined,
                 last_change_date: lastChangeDate || undefined,
                 alert_status: "active" as const,
-                tenant_id: "",
             };
 
             if (editingAlert) {
