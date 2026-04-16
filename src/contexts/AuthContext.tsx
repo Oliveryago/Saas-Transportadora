@@ -102,11 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (!authData.user) throw new Error("Sign up failed: User creation returned no data");
 
+    const newTenantId = crypto.randomUUID();
+
     const tenantRes = await supabase
       .from("tenants")
-      .insert([{ name: "Pessoal" }])
-      .select()
-      .single();
+      .insert([{ id: newTenantId, name: "Pessoal" }]);
 
     if (tenantRes.error) throw tenantRes.error;
 
@@ -117,18 +117,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: authData.user.id,
           email,
           name,
-          tenant_id: tenantRes.data.id,
+          tenant_id: newTenantId,
           role: "admin",
           metadata: {},
         },
-      ])
-      .select()
-      .single();
+      ]);
 
     if (userRes.error) throw userRes.error;
 
-    setUser(userRes.data);
-    setRealTenant(tenantRes.data);
+    const newTenant = { id: newTenantId, name: "Pessoal" } as any;
+    const newUser = { id: authData.user.id, email, name, tenant_id: newTenantId, role: "admin", metadata: {} } as any;
+
+    setUser(newUser);
+    setRealTenant(newTenant);
   }
 
   async function signIn(email: string, password: string): Promise<void> {
