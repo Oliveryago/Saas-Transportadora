@@ -61,3 +61,31 @@ context/
 - **Arquivo:** `src/pages/Fuel.tsx`, `src/components/fuel/FuelModal.tsx`
 - **Hook:** `src/hooks/useFuelRecords.ts`
 - **Atenção:** `FuelRecord.invoice_photo_url` já existe no tipo — precisa de UI para upload no fluxo do motorista
+
+### Global Scale Evolution (Planejado)
+
+- **Feature Context:** `context/intent/feature-global-scale-evolution.md`
+- **ADR:** `context/decisions/005-global-scale-evolution.md`
+- **Status:** ADR aprovado, aguardando implementação por fases
+- **Dependências novas:** `@zxing/library`, `jspdf`, `jspdf-autotable`, `xlsx`, `recharts`
+- **Impacto:**
+  - Performance: React.lazy + Suspense em todas as rotas, skeleton loading, paginação server-side
+  - Componentes shared: `PhotoUpload.tsx`, `QRCodeScanner.tsx`, `GlobalSearch.tsx`, `NotificationBell.tsx`
+  - Novo módulo: `/reports` — 5 relatórios com exportação PDF/Excel
+  - Novo serviço: `documentGenerator.ts` — geração de OS, comprovante, relatório de veículo
+  - Dashboard: reformulação completa com Recharts (gráficos), cards de métricas, alertas por urgência
+  - Mobile: PWA manifest, bottom navigation para motoristas, pull to refresh
+  - Notificações: Supabase Realtime + tabela `notifications`
+  - Segurança: audit log, rate limiting, timeout de sessão
+  - Navegação: busca global (Ctrl+K), badges na sidebar, breadcrumb
+- **Ordem de implementação:**
+  1. Performance (lazy loading + skeleton)
+  2. PhotoUpload universal
+  3. Dashboard reformulado
+  4. Relatórios
+  5. QR Code Scanner
+  6. Geração de documentos
+  7. Melhorias mobile
+  8. Notificações em tempo real
+  9. Segurança
+  10. Navegação e UX

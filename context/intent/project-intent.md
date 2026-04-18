@@ -48,3 +48,5 @@ Sistema SaaS multi-empresa para gestão operacional de transportadoras, permitin
 - [Decision: Auth e Autorização](../decisions/002-auth-rbac-update.md)
 - [Decision: SuperAdmin Tenant Switching](../decisions/003-superadmin-tenant-switching.md)
 - [Decision: Alerta via KM Abastecimento](../decisions/004-oil-alert-fuel-km.md)
+- [Feature: Evolução para Escala Global](feature-global-scale-evolution.md)
+- [Decision: Evolução para Escala Global](../decisions/005-global-scale-evolution.md)

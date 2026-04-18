@@ -18,7 +18,9 @@ import {
     Building2,
     BarChart2,
     ArrowLeft,
+    Search
 } from "lucide-react";
+import { NotificationBell } from "../shared/NotificationBell";
 
 export function Sidebar() {
     const { isSuperAdmin, isImpersonating, impersonatedTenant, stopImpersonation } = useAuth();
@@ -40,6 +42,7 @@ export function Sidebar() {
         { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
         { to: "/settings", icon: Settings, label: "Configurações" },
         { to: "/suppliers", icon: Users, label: "Fornecedores" },
+        { to: "/reports", icon: BarChart2, label: "Relatórios" },
     ];
 
     function handleStopImpersonation() {
@@ -68,9 +71,26 @@ export function Sidebar() {
             )}
 
             <div className="p-6">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
-                    Transportadora
-                </h1>
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+                        Transportadora
+                    </h1>
+                    <NotificationBell />
+                </div>
+                
+                <button
+                    onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 rounded-lg transition-colors group"
+                >
+                    <div className="flex items-center gap-2">
+                        <Search className="w-4 h-4 text-slate-500 group-hover:text-slate-300" />
+                        <span className="text-sm font-medium group-hover:text-slate-200">Busca Rápida</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-slate-900 border border-slate-600 font-mono text-[10px] text-slate-400 font-bold shadow-sm">Ctrl</kbd>
+                        <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-slate-900 border border-slate-600 font-mono text-[10px] text-slate-400 font-bold shadow-sm">K</kbd>
+                    </div>
+                </button>
             </div>
 
             <nav className="px-4 pb-6">

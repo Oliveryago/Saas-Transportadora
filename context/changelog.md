@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-04-18] — Feature: Evolução para Escala Global
+
+### Adicionado
+- `context/intent/feature-global-scale-evolution.md` — Intent da feature de evolução global
+- `context/decisions/005-global-scale-evolution.md` — ADR: decisões técnicas para as 10 áreas de evolução
+- Escopo: Performance, PhotoUpload universal, QR Code, Dashboard completo, Relatórios, Documentos PDF, Mobile/PWA, Notificações em tempo real, Segurança e Navegação
+
+### Dependências planejadas
+- `@zxing/library` — leitura de QR/barcode
+- `jspdf` + `jspdf-autotable` — geração de PDFs
+- `xlsx` (SheetJS) — exportação Excel
+- `recharts` — gráficos no dashboard e relatórios
+
 ## [2026-03-21] — Feature: Alerta de Troca de Óleo via KM do Abastecimento
 
 ### Adicionado

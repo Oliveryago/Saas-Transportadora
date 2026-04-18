@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useMaintenanceRecords } from "../hooks/useMaintenanceRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
-import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench } from "lucide-react";
+import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } from "lucide-react";
+import { generateMaintenanceOS } from "../services/documentGenerator";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
 
 export function Maintenance() {
-    const { user, signOut } = useAuth();
+    const { user, tenant, signOut } = useAuth();
     const { records, deleteRecord, refetch } = useMaintenanceRecords();
     const { vehicles } = useVehicles();
     const navigate = useNavigate();
@@ -37,6 +38,36 @@ export function Maintenance() {
         setModalOpen(false);
         setEditingRecord(null);
         refetch();
+    }
+
+    const [generatingOS, setGeneratingOS] = useState<string | null>(null);
+
+    async function handleGenerateOS(record: any) {
+        setGeneratingOS(record.id);
+        const v = vehicles.find(v => v.id === record.vehicle_id);
+        if (!v) {
+            setGeneratingOS(null);
+            return;
+        }
+
+        try {
+            await generateMaintenanceOS({
+                id: record.id,
+                vehiclePlate: v.license_plate,
+                vehicleModel: v.model,
+                date: record.date,
+                type: typeLabels[record.type] || record.type,
+                description: record.description || "",
+                parts: record.parts || [],
+                totalValue: record.value_brl || 0,
+                tenantName: tenant?.name
+            });
+        } catch (error) {
+            console.error("Failed to generate OS:", error);
+            alert("Erro ao gerar Ordem de Serviço. Verifique o console.");
+        } finally {
+            setGeneratingOS(null);
+        }
     }
 
     return (
@@ -122,12 +153,21 @@ export function Maintenance() {
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="flex gap-2">
                                                     <button
+                                                        onClick={() => handleGenerateOS(record)}
+                                                        disabled={generatingOS === record.id}
+                                                        className="text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                                                        title="Gerar Ordem de Serviço (PDF)"
+                                                    >
+                                                        {generatingOS === record.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                                                    </button>
+                                                    <button
                                                         onClick={() => { setEditingRecord(record as any); setModalOpen(true); }}
                                                         className="text-blue-600 hover:text-blue-700"
+                                                        title="Editar"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => deleteRecord(record.id)} className="text-red-600 hover:text-red-700">
+                                                    <button onClick={() => deleteRecord(record.id)} className="text-red-600 hover:text-red-700" title="Excluir">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>

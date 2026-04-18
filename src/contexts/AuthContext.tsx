@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { User, Tenant } from "../types";
+import { logAudit } from "../services/auditLogger";
 
 interface AuthContextType {
   user: User | null;
@@ -133,15 +134,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signIn(email: string, password: string): Promise<void> {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        logAudit({ action: "LOGIN", userId: session.user.id });
+      }
+    } catch (error: any) {
+      throw error;
+    }
   }
 
   async function signOut(): Promise<void> {
+    if (user) {
+      logAudit({ action: "LOGOUT", userId: user.id, tenantId: user.tenant_id });
+    }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUser(null);

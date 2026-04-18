@@ -5,8 +5,9 @@ import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Plus, LogOut, ArrowLeft, Trash2, Gauge, Info,
-  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2
 } from "lucide-react";
+import { generateVoucher } from "../services/documentGenerator";
 import FuelModal from "../components/fuel/FuelModal";
 
 interface TrechoData {
@@ -24,7 +25,7 @@ interface TrechoData {
 }
 
 export function Fuel() {
-  const { user, signOut } = useAuth();
+  const { user, tenant, signOut } = useAuth();
   const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords();
   const { vehicles } = useVehicles();
   const navigate = useNavigate();
@@ -33,6 +34,43 @@ export function Fuel() {
   const [showTooltip, setShowTooltip] = useState(false);
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
+  const [generatingVoucher, setGeneratingVoucher] = useState<string | null>(null);
+
+  async function handleGenerateVoucher(trecho: TrechoData) {
+    setGeneratingVoucher(trecho.recordId);
+    try {
+      const v = vehicles.find(v => v.id === trecho.vehicleId);
+      if (!v) return;
+      
+      const details: Record<string, string | number> = {
+        "Posto": trecho.posto,
+        "Litros": `${trecho.litros.toFixed(2)} L`,
+        "KM Registrado": trecho.kmFinal.toLocaleString("pt-BR")
+      };
+
+      if (!trecho.isFirst) {
+        details["KM Inicial"] = trecho.kmInicial.toLocaleString("pt-BR");
+        details["Distância"] = `${trecho.distancia.toLocaleString("pt-BR")} km`;
+        details["Consumo"] = `${trecho.kmPorLitro.toFixed(2)} km/l`;
+      }
+
+      await generateVoucher({
+        id: trecho.recordId,
+        type: "Combustível",
+        date: trecho.date,
+        vehiclePlate: v.license_plate,
+        vehicleModel: v.model,
+        value: trecho.valorTotal,
+        details,
+        tenantName: tenant?.name
+      });
+    } catch (error) {
+      console.error("Error generating voucher:", error);
+      alert("Erro ao gerar comprovante.");
+    } finally {
+      setGeneratingVoucher(null);
+    }
+  }
 
   const getVehicle = (vehicleId: string) => vehicles.find((v) => v.id === vehicleId);
   const getVehicleName = (vehicleId: string) => {
@@ -281,7 +319,7 @@ export function Fuel() {
                         {/* Vertical line */}
                         <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
-                        {[...trechos].reverse().map((trecho, index) => {
+                        {[...trechos].reverse().map((trecho, _index) => {
                           const badge = !trecho.isFirst && trecho.kmPorLitro > 0 ? getConsumoBadge(trecho.kmPorLitro) : null;
 
                           return (
@@ -302,12 +340,19 @@ export function Fuel() {
                                     <p className="text-xs text-gray-400 mt-0.5">Posto: {trecho.posto}</p>
                                   </div>
 
-                                  {/* Right: value and actions */}
                                   <div className="flex items-center gap-3">
                                     <span className="text-sm font-medium text-gray-700">
                                       R$ {trecho.valorTotal.toFixed(2)}
                                     </span>
-                                    <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
+                                    <button
+                                      onClick={() => handleGenerateVoucher(trecho)}
+                                      disabled={generatingVoucher === trecho.recordId}
+                                      className="text-indigo-400 hover:text-indigo-600 transition disabled:opacity-50"
+                                      title="Gerar Comprovante (PDF)"
+                                    >
+                                      {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                                    </button>
+                                    <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
@@ -457,9 +502,19 @@ export function Fuel() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{trecho.posto}</td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleGenerateVoucher(trecho)}
+                              disabled={generatingVoucher === trecho.recordId}
+                              className="text-indigo-400 hover:text-indigo-600 transition disabled:opacity-50"
+                              title="Gerar Comprovante (PDF)"
+                            >
+                              {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                            </button>
+                            <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

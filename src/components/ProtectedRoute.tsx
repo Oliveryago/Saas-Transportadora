@@ -1,9 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "./Layout/MainLayout";
+import { useSessionTimeout } from "../hooks/useSessionTimeout";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  useSessionTimeout();
 
   if (loading) {
     return (
