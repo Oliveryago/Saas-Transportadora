@@ -22,65 +22,110 @@ export interface OCRResult {
 const extractDataHeuristically = (text: string): OCRResult => {
   // LOG ULTRA VISÍVEL
   console.clear();
-  console.log("%c--- SISTEMA DE OCR V2.0 ATIVO ---", "background: #00ff00; color: black; font-size: 20px; padding: 10px; border-radius: 8px;");
+  console.log("%c--- SISTEMA DE OCR V4.0 ATIVO ---", "background: #00ff00; color: black; font-size: 20px; padding: 10px; border-radius: 8px;");
 
-  // Melhora na busca do Nome
-  let nome = "";
-  const lines = text.split('\n').map(l => l.trim().toUpperCase());
+  const lines = text.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 2);
   
-  // 1. Tenta achar especificamente após a palavra NOME
-  const nomeMatch = text.match(/NOME[ ]*(COMPLETO)?[ ]*[:\-]?([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]{10,})/i);
-  if (nomeMatch && nomeMatch[2]) {
-    nome = nomeMatch[2].trim();
-  } else {
-    // 2. Procura a maior linha em caixa alta que pareça um nome
-    nome = lines.find(l => 
-      l.length > 10 && 
-      /^[A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]+$/.test(l) && 
-      !l.includes("CNH") && !l.includes("BRASIL") && !l.includes("DENTIDADE")
-    ) || "";
+  // 1. EXTRAÇÃO DE NOME (Melhorado: Ignora cabeçalhos do governo)
+  let nome = "";
+  const keywordsToIgnore = ["MINISTÉRIO", "INFRAESTRUTURA", "SECRETARIA", "NACIONAL", "TRÂNSITO", "SENATRAN", "CONTRAN", "DENATRAN", "FEDERATIVA", "DETRAN", "SERPRO", "ASSINADOR"];
+  
+  // Tenta achar especificamente próximo à palavra NOME
+  const nomeKeywords = [/NOME[ ]*(COMPLETO)?[ ]*[:\-]?/i, /NOME[:\-]?/i];
+  let foundNameLine = -1;
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes("NOME")) {
+      foundNameLine = i;
+      break;
+    }
   }
 
-  // CPF (Prioriza o que tem pontos e traço)
+  if (foundNameLine !== -1) {
+    // Se a palavra NOME está na mesma linha que o nome (ex: "NOME: FULANO")
+    const cleanLine = lines[foundNameLine].replace(/NOME[ ]*(COMPLETO)?[ ]*[:\-]?/i, "").trim();
+    if (cleanLine.length > 5 && !keywordsToIgnore.some(k => cleanLine.includes(k))) {
+      nome = cleanLine;
+    } else if (lines[foundNameLine + 1]) {
+      // Pega a linha seguinte
+      nome = lines[foundNameLine + 1];
+    }
+  }
+
+  // Fallback: Procura a linha mais longa que NÃO contenha as palavras proibidas
+  if (!nome || keywordsToIgnore.some(k => nome.includes(k))) {
+    const potentialNames = lines.filter(l => 
+      l.length > 10 && 
+      /^[A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]+$/.test(l) && 
+      !keywordsToIgnore.some(k => l.includes(k)) &&
+      !l.includes("CNH") && !l.includes("BRASIL")
+    );
+    nome = potentialNames[0] || "";
+  }
+
+  // 2. CPF (Com máscara ou 11 dígitos)
   const cpfWithMask = text.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/);
   const all11Digits = text.match(/\d{11}/g) || [];
   const cpfFound = cpfWithMask ? cpfWithMask[0] : (all11Digits.length > 0 ? all11Digits[0] : "");
   const cpf = cpfFound.replace(/[^0-9]/g, "");
 
-  // Registro/CNH (Cuidado para não ser igual ao CPF)
+  // 3. REGISTRO / NÚMERO DA CNH (Melhorado: Procura por "N°" ou "REGISTRO")
   let cnh = "";
-  const registroMatch = text.match(/REGISTRO[ ]*[:\- ]*[ ]*(\d{11})/i);
-  if (registroMatch) {
-    cnh = registroMatch[1];
-  } else {
-    // Pega o primeiro número de 11 dígitos que NÃO seja o CPF
-    cnh = all11Digits.find(n => n !== cpfFound && n !== cpf) || (all11Digits[0] || "");
+  const registroKeywords = [/REGISTRO[ :\-]*(\d{11})/i, /N[º°][ :\-]*(\d{11})/i, /CNH[ :\-]*(\d{11})/i];
+  
+  for (const pattern of registroKeywords) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      cnh = match[1];
+      break;
+    }
   }
 
+  if (!cnh) {
+    // Pega o segundo número de 11 dígitos que NÃO seja o CPF
+    cnh = all11Digits.find(n => n.replace(/\D/g, "") !== cpf) || (all11Digits.length > 1 ? all11Digits[1] : "");
+  }
+
+  // 4. DATAS (DD/MM/AAAA)
   const dates = text.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
-  const catMatch = text.match(/CAT[.\s]*([A-E]{1,2})/i);
+  
+  // 5. CATEGORIA (Padrões como "CAT. AB", "CATEGORIA D", ou apenas "AD")
+  let categoria = "";
+  const catPatterns = [
+    /CAT[.\s]*([A-E]{1,2})/i,
+    /CATEGORIA[ \-]*([A-E]{1,2})/i,
+    /\s([A-E]{1,2})\s/
+  ];
+
+  for (const pattern of catPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1] && match[1].length <= 2) {
+      categoria = match[1];
+      break;
+    }
+  }
 
   const result = {
-    nome_completo: nome.split('\n')[0].trim(),
+    nome_completo: nome.replace(/[\d]/g, "").trim(),
     cpf,
     numero_cnh: cnh.replace(/\D/g, ""),
-    categoria_cnh: catMatch ? catMatch[1] : "",
-    validade_cnh: dates.length > 1 ? dates[1].split('/').reverse().join('-') : "",
-    data_nascimento: dates.length > 0 ? dates[0].split('/').reverse().join('-') : "",
-    confidence: (cpf || nome) ? 0.8 : 0.1,
+    categoria_cnh: categoria.trim(),
+    validade_cnh: dates.length > 1 ? dates.find(d => d.includes("202"))?.split('/').reverse().join('-') || "" : "",
+    data_nascimento: dates.length > 0 ? dates.find(d => d.includes("19") || d.includes("200"))?.split('/').reverse().join('-') || "" : "",
+    confidence: (cpf && nome) ? 0.9 : 0.4,
     rawText: text
   };
 
-  console.log("%cTEXTO BRUTO QUE O SISTEMA LEU:", "font-weight: bold; font-size: 14px; color: #4f46e5;");
+  console.log("%cTEXTO BRUTO QUE O SISTEMA LEU:", "font-weight: bold; font-size: 11px; color: #4f46e5;");
   console.log(text);
   
-  console.log("%cTABELA DE EXTRAÇÃO:", "font-weight: bold; color: green;");
   console.table({
-    "Nome Detectado": result.nome_completo,
+    "Nome": result.nome_completo,
     "CPF": result.cpf,
-    "CNH (Registro)": result.numero_cnh,
-    "Data Nasc": result.data_nascimento,
-    "Total Datas": dates.length
+    "CNH": result.numero_cnh,
+    "Nascimento": result.data_nascimento,
+    "Validade": result.validade_cnh,
+    "Categoria": result.categoria_cnh
   });
 
   return result;
