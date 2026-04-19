@@ -107,16 +107,17 @@ export function Fuel() {
 
       result[vehicleId] = vehicleRecords.map((record, index) => {
         const isFirst = index === 0;
-      result[vehicleId] = vehicleRecords.map((record, idx) => {
-        const isFirst = idx === 0;
-        const distancia = idx > 0 ? record.km_digital - vehicleRecords[idx - 1].km_digital : 0;
+      result[vehicleId] = vehicleRecords.map((record, index) => {
+        const isFirst = index === 0;
+        const prev = !isFirst ? vehicleRecords[index - 1] : null;
+        const distancia = prev ? record.km_digital - prev.km_digital : 0;
         
         let kmPorLitro = 0;
         const isFull = record.is_full_tank !== false;
 
-        if (idx > 0) {
-          if (isFull) {
-            const totalDistance = record.km_digital - (lastFullRecord?.km_digital || vehicleRecords[0].km_digital);
+        if (isFull) {
+          if (lastFullRecord) {
+            const totalDistance = record.km_digital - lastFullRecord.km_digital;
             const totalLiters = pendingLiters + record.liters;
             kmPorLitro = totalLiters > 0 ? totalDistance / totalLiters : 0;
           }
