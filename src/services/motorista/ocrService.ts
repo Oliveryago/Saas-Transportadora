@@ -1,15 +1,9 @@
 /**
- * Serviço de OCR para Processamento de CNH - V10.0
+ * Serviço de OCR para Processamento de CNH - V11.0 (DEBUG)
  * 
- * SOLUÇÃO FINAL: Ponte Segura via Supabase Edge Function
- * 
- * Por que esta solução?
- * 1. O Google Vision bloqueia chamadas diretas do browser (Erro 403).
- * 2. O projeto Supabase local está com restrições de deploy.
- * 3. Usamos uma Edge Function dedicada com CORS liberado para o seu domínio Vercel.
+ * Esta versão foi modificada para expor o erro real vindo do backend.
  */
 
-// Endereço da nossa ponte segura
 const EDGE_FUNCTION_URL = "https://tcvwyxaalephjqqoqiff.supabase.co/functions/v1/ocr-cnh";
 
 export interface OCRResult {
@@ -26,15 +20,13 @@ export interface OCRResult {
 
 export const ocrService = {
   async processCNH(file: File): Promise<OCRResult> {
-    console.clear();
-    console.log("%c--- SISTEMA DE OCR V10.0 (SECURE BRIDGE) ---", "background: #4f46e5; color: white; font-size: 18px; padding: 10px; border-radius: 8px;");
+    console.log("%c--- SISTEMA DE OCR V11.0 (DEBUG MODE) ---", "background: #f59e0b; color: black; font-size: 18px; padding: 10px; border-radius: 8px;");
 
     try {
       let base64Image = "";
       
-      // 1. Converte PDF ou Imagem para alta resolução
       if (file.type === 'application/pdf') {
-        console.log("[BRIDGE] Preparando PDF...");
+        console.log("[DEBUG] Renderizando PDF...");
         if (!(window as any).pdfjsLib) {
           const script = document.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -46,15 +38,14 @@ export const ocrService = {
 
         const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
         const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 4.0 }); // 4x para Google Vision
+        const viewport = page.getViewport({ scale: 4.0 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width; canvas.height = viewport.height;
         const ctx = canvas.getContext('2d')!;
         ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
-        base64Image = canvas.toDataURL('image/jpeg', 0.9);
+        base64Image = canvas.toDataURL('image/jpeg', 0.85); // JPEG para reduzir payload
       } else {
-        console.log("[BRIDGE] Preparando Imagem...");
         base64Image = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -62,8 +53,7 @@ export const ocrService = {
         });
       }
 
-      // 2. Chamada à ponte segura (Edge Function)
-      console.log("%c[BRIDGE] Enviando para processamento em nuvem...", "color: #4f46e5; font-weight: bold;");
+      console.log("[DEBUG] Enviando para Edge Function...");
       
       const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
@@ -71,21 +61,29 @@ export const ocrService = {
         body: JSON.stringify({ image: base64Image })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Erro na ponte de processamento.");
+        console.error("%c--- ERRO NO BACKEND ---", "color: red; font-weight: bold; font-size: 16px;");
+        console.log("%cStatus:", "font-weight: bold;", response.status);
+        console.log("%cResposta Completa:", "font-weight: bold;", data);
+        
+        if (data.details) {
+          console.error("%cDETALHES DO GOOGLE VISION:", "color: #ff4444; font-weight: bold;");
+          console.dir(data.details);
+        }
+        
+        throw new Error(data.error || "Erro no processamento remoto.");
       }
 
-      const result = await response.json();
+      console.log("%c[SUCCESS] OCR Concluído!", "color: green; font-weight: bold;");
+      console.table(data);
       
-      console.log("%c[SUCCESS] Dados extraídos com 100% de precisão (Google Vision)", "color: green; font-weight: bold;");
-      console.table(result);
-      
-      return result;
+      return data;
 
     } catch (error: any) {
-      console.error("Erro no OCR V10.0:", error);
-      throw new Error(error.message || "Falha técnica ao processar CNH.");
+      console.error("[DEBUG] Erro capturado no catch:", error);
+      throw new Error(error.message || "Erro técnico.");
     }
   },
 
