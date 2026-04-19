@@ -41,7 +41,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
         if (!vehicleId) { setError("Selecione um veículo"); return; }
         setLoading(true);
         try {
-            const data = { vehicle_id: vehicleId, driver_id: driverId || undefined, wash_place: washPlace || undefined, vehicle_type: vehicleType, date, value_brl: valueBrl || undefined, notes: notes || undefined, tenant_id: "" };
+            const data = { vehicle_id: vehicleId, driver_id: driverId || undefined, wash_place: washPlace || undefined, vehicle_type: vehicleType, date, value_brl: valueBrl || undefined, notes: notes || undefined };
             if (editingRecord) await updateRecord(editingRecord.id, data);
             else await addRecord(data as any);
             onClose();
