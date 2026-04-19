@@ -27,6 +27,14 @@ interface TrechoData {
   isFull: boolean;
 }
 
+const formatLocalDate = (dateStr: string) => {
+  if (!dateStr) return "-";
+  // dateStr is YYYY-MM-DD
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+};
+
 export function Fuel() {
   const { user, tenant, signOut } = useAuth();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -149,7 +157,17 @@ export function Fuel() {
   }, [records]);
 
   // Stats (Filtered by active selection)
-  const allTrechos = Object.values(trechosPerVehicle).flat();
+  const allTrechos = useMemo(() => {
+    return Object.values(trechosPerVehicle)
+      .flat()
+      .sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        return b.kmFinal - a.kmFinal;
+      });
+  }, [trechosPerVehicle]);
+
   const trechosComConsumo = allTrechos.filter((t) => !t.isFirst && t.kmPorLitro > 0);
 
   // We only count liters that were actually part of a completed consumption segment
@@ -390,7 +408,7 @@ export function Fuel() {
                                   {/* Left: date and station */}
                                   <div>
                                     <p className="text-sm font-semibold text-gray-900">
-                                      {new Date(trecho.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                                      {formatLocalDate(trecho.date)}
                                     </p>
                                     <p className="text-xs text-gray-400 mt-0.5">Posto: {trecho.posto}</p>
                                   </div>

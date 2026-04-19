@@ -24,7 +24,7 @@ export function useFuelRecords(vehicleId?: string) {
         query = query.eq("vehicle_id", vehicleId);
       }
 
-      const { data, error: err } = await query.order("created_at", { ascending: false });
+      const { data, error: err } = await query.order("date", { ascending: false });
 
       if (err) throw err;
       setRecords(data || []);
