@@ -1,7 +1,13 @@
 /**
- * Serviço de OCR para Processamento de CNH - V11.0 (DEBUG)
+ * Serviço de OCR para Processamento de CNH - V12.0 (FINAL RESOLUTION)
  * 
- * Esta versão foi modificada para expor o erro real vindo do backend.
+ * Estratégia:
+ * 1. PDF -> Renderiza Página 1 (Escala 3x) -> JPEG 0.8 (Otimizado)
+ * 2. Envia para Supabase Edge Function (tcvwyxaalephjqqoqiff)
+ * 3. Edge Function -> Google Vision OCR -> Parser Inteligente
+ * 
+ * Vantagem: Resolução 3x é o "sweet spot" para o Google Vision ler perfeitamente
+ * sem estourar o limite de payload da requisição.
  */
 
 const EDGE_FUNCTION_URL = "https://tcvwyxaalephjqqoqiff.supabase.co/functions/v1/ocr-cnh";
@@ -20,32 +26,44 @@ export interface OCRResult {
 
 export const ocrService = {
   async processCNH(file: File): Promise<OCRResult> {
-    console.log("%c--- SISTEMA DE OCR V11.0 (DEBUG MODE) ---", "background: #f59e0b; color: black; font-size: 18px; padding: 10px; border-radius: 8px;");
+    console.clear();
+    console.log("%c--- SISTEMA DE OCR V12.0 (FINAL) ---", "background: #111827; color: #10b981; font-size: 18px; padding: 10px; border-radius: 8px; border: 1px solid #10b981;");
 
     try {
       let base64Image = "";
       
       if (file.type === 'application/pdf') {
-        console.log("[DEBUG] Renderizando PDF...");
+        console.log("%c[PDF] Iniciando conversão de PDF para Imagem...", "color: #3b82f6;");
+        
         if (!(window as any).pdfjsLib) {
           const script = document.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
           document.head.appendChild(script);
           await new Promise(r => { script.onload = r; });
         }
+        
         const pdfjsLib = (window as any).pdfjsLib;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
         const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 4.0 });
+        
+        // Escala 3.0x: Alta definição suficiente para OCR, mas leve para a rede
+        const viewport = page.getViewport({ scale: 3.0 }); 
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width; canvas.height = viewport.height;
         const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = 'white'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         await page.render({ canvasContext: ctx, viewport }).promise;
-        base64Image = canvas.toDataURL('image/jpeg', 0.85); // JPEG para reduzir payload
+        
+        // JPEG 0.8: Reduz drasticamente o tamanho do Base64 sem perder nitidez crítica
+        base64Image = canvas.toDataURL('image/jpeg', 0.8);
+        console.log(`%c[PDF] Imagem gerada: ${Math.round(base64Image.length / 1024)} KB`, "color: #3b82f6; font-style: italic;");
       } else {
+        console.log("%c[IMAGE] Codificando imagem...", "color: #3b82f6;");
         base64Image = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -53,7 +71,7 @@ export const ocrService = {
         });
       }
 
-      console.log("[DEBUG] Enviando para Edge Function...");
+      console.log("%c[CLOUD] Enviando para processamento seguro...", "color: #8b5cf6; font-weight: bold;");
       
       const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
@@ -64,26 +82,40 @@ export const ocrService = {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("%c--- ERRO NO BACKEND ---", "color: red; font-weight: bold; font-size: 16px;");
-        console.log("%cStatus:", "font-weight: bold;", response.status);
-        console.log("%cResposta Completa:", "font-weight: bold;", data);
+        console.error("%c--- FALHA NO PROCESSAMENTO CLOUD ---", "color: #ef4444; font-weight: bold; font-size: 16px;");
+        console.log("%cHTTP Status:", "font-weight: bold;", response.status);
         
-        if (data.details) {
-          console.error("%cDETALHES DO GOOGLE VISION:", "color: #ff4444; font-weight: bold;");
-          console.dir(data.details);
+        if (data.google_error) {
+          console.error("%cDETALHE DO GOOGLE VISION:", "color: #ef4444; font-weight: bold;");
+          console.dir(data.google_error);
+          
+          // Alerta amigável sobre faturamento/ativação se for o caso
+          if (JSON.stringify(data.google_error).includes("BILLING_NOT_ENABLED")) {
+            alert("ERRO GOOGLE: Faturamento não ativado. Você precisa vincular um cartão na conta do Google Cloud para usar a Vision API.");
+          }
         }
         
-        throw new Error(data.error || "Erro no processamento remoto.");
+        throw new Error(data.error || "Erro ao processar documento.");
       }
 
-      console.log("%c[SUCCESS] OCR Concluído!", "color: green; font-weight: bold;");
-      console.table(data);
+      console.log("%c[SUCCESS] Extração concluída!", "color: #10b981; font-weight: bold; font-size: 14px;");
+      console.table({
+        "Nome": data.nome_completo,
+        "CPF": data.cpf,
+        "CNH": data.numero_cnh,
+        "Nascimento": data.data_nascimento,
+        "Validade": data.validade_cnh,
+        "Categoria": data.categoria_cnh,
+      });
       
-      return data;
+      return {
+        ...data,
+        method: 'google_vision'
+      };
 
     } catch (error: any) {
-      console.error("[DEBUG] Erro capturado no catch:", error);
-      throw new Error(error.message || "Erro técnico.");
+      console.error("[OCR ERROR]", error);
+      throw new Error(error.message || "Falha técnica no OCR.");
     }
   },
 
