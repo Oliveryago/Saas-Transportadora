@@ -149,6 +149,17 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
             </select>
           </div>
 
+          <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 shadow-sm">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={isFullTank} onChange={(e) => setIsFullTank(e.target.checked)} className="sr-only peer" />
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-400 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+            </label>
+            <div>
+              <span className="text-sm font-bold text-amber-900 block">Abastecimento com Tanque Cheio?</span>
+              <p className="text-[10px] text-amber-700 leading-tight">Marque se você completou o tanque até a boca. Se colocou apenas um valor fixo (ex: R$ 100), desmarque.</p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Combustível *</label>
             <select value={fuelType} onChange={(e) => setFuelType(e.target.value as FuelType)}
@@ -185,16 +196,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" checked={isFullTank} onChange={(e) => setIsFullTank(e.target.checked)} className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
-            </label>
-            <div>
-              <span className="text-sm font-semibold text-amber-900 block">Tanque Cheio?</span>
-              <p className="text-xs text-amber-700">Desmarque se for apenas um abastecimento parcial</p>
-            </div>
-          </div>
+
 
           {/* Arla toggle */}
           {fuelType.includes("diesel") && (

@@ -147,17 +147,19 @@ export function Fuel() {
     return result;
   }, [records]);
 
-  // Stats
+  // Stats (Filtered by active selection)
   const allTrechos = Object.values(trechosPerVehicle).flat();
   const trechosComConsumo = allTrechos.filter((t) => !t.isFirst && t.kmPorLitro > 0);
 
-  const avgKmL = trechosComConsumo.length > 0
-    ? trechosComConsumo.reduce((s, t) => s + t.kmPorLitro, 0) / trechosComConsumo.length
-    : 0;
+  // We only count liters that were actually part of a completed consumption segment
+  const consumableLiters = trechosComConsumo.reduce((sum, t) => sum + t.liters, 0);
+  const totalKm = trechosComConsumo.reduce((sum, t) => sum + t.distancia, 0);
 
-  const totalLiters = records.reduce((sum, r) => sum + Number(r.liters || 0), 0);
+  const avgKmL = consumableLiters > 0 ? totalKm / consumableLiters : 0;
+
   const totalCost = records.reduce((sum, r) => sum + Number(r.value_brl || 0), 0);
-  const totalKm = trechosComConsumo.reduce((s, t) => s + t.distancia, 0);
+  const totalRecords = records.length;
+  const currentTotalLiters = records.reduce((sum, r) => sum + Number(r.liters || 0), 0);
 
   function getConsumoBadge(kml: number) {
     if (kml >= 3) return { label: "Bom", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: TrendingUp, dot: "bg-emerald-500" };
@@ -234,11 +236,11 @@ export function Fuel() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-5">
             <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Registros</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{records.length}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalRecords}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-5">
             <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Litros Total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })}L</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{currentTotalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })}L</p>
           </div>
           <div className="bg-white rounded-lg shadow p-5">
             <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Gasto Total</p>

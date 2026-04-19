@@ -170,35 +170,49 @@ export function useDashboardMetrics(vehicleId?: string) {
     const monthFuel = fuelRecords.filter(r => isThisMonth(r.created_at));
     const monthMaintenance = maintenanceRecords.filter(r => isThisMonth(r.created_at));
 
-    // Calcular consumo médio da frota
-    const vehicleStats = new Map<string, { minKm: number; maxKm: number; litersToExclude: number; totalLiters: number }>();
-    
-    fuelRecords.forEach(r => {
-      if (isThisMonth(r.created_at)) {
-        const stats = vehicleStats.get(r.vehicle_id) || { minKm: Infinity, maxKm: -Infinity, litersToExclude: 0, totalLiters: 0 };
-        
-        stats.totalLiters += r.liters || 0;
-        
-        if (r.km_digital < stats.minKm) {
-          stats.minKm = r.km_digital;
-          stats.litersToExclude = r.liters || 0;
-        }
-        if (r.km_digital > stats.maxKm) {
-          stats.maxKm = r.km_digital;
-        }
-        
-        vehicleStats.set(r.vehicle_id, stats);
-      }
-    });
+    let globalTotalKm = 0;
+    let globalConsumableLiters = 0;
 
-    let consumptionLiters = 0;
-    vehicleStats.forEach((stats) => {
-      if (stats.maxKm > stats.minKm && stats.minKm !== Infinity) {
-        totalKm += stats.maxKm - stats.minKm;
-        // The liters from the very first refill in the period are usually for the PREVIOUS period's distance.
-        // To get a meaningful average, we divide distance by the liters that "filled back" that distance.
-        consumptionLiters += (stats.totalLiters - stats.litersToExclude);
-      }
+    const vehiclesIds = [...new Set(fuelRecords.map(r => r.vehicle_id))];
+    
+    vehiclesIds.forEach(vId => {
+      const vRecords = fuelRecords
+        .filter(r => r.vehicle_id === vId)
+        .sort((a, b) => a.km_digital - b.km_digital);
+
+      let lastFullRecord: FuelRecord | null = null;
+      let pendingLiters = 0;
+
+      vRecords.forEach((r, idx) => {
+        const isCurrentMonth = isThisMonth(r.created_at);
+        const isFull = r.is_full_tank !== false;
+
+        if (idx > 0) {
+          const prev = vRecords[idx - 1];
+          const dist = r.km_digital - prev.km_digital;
+          
+          if (isFull) {
+            if (lastFullRecord) {
+              const segmentDist = r.km_digital - lastFullRecord.km_digital;
+              const segmentLiters = pendingLiters + r.liters;
+              
+              // Only add to global metrics if the segment ENDS in the current month
+              if (isCurrentMonth && segmentDist > 0 && segmentLiters > 0) {
+                globalTotalKm += segmentDist;
+                globalConsumableLiters += segmentLiters;
+              }
+            }
+            lastFullRecord = r;
+            pendingLiters = 0;
+          } else {
+            pendingLiters += r.liters;
+          }
+        } else {
+          // First record of the vehicle
+          if (isFull) lastFullRecord = r;
+          else pendingLiters = r.liters;
+        }
+      });
     });
 
     return {
@@ -208,8 +222,8 @@ export function useDashboardMetrics(vehicleId?: string) {
       fuelCountMonth: monthFuel.length,
       fuelTotalMonth: monthFuel.reduce((sum, r) => sum + (r.value_brl || 0), 0),
       maintenanceCostMonth: monthMaintenance.reduce((sum, r) => sum + (r.value_brl || 0), 0),
-      totalKmMonth: totalKm,
-      avgConsumption: consumptionLiters > 0 ? totalKm / consumptionLiters : 0,
+      totalKmMonth: globalTotalKm,
+      avgConsumption: globalConsumableLiters > 0 ? globalTotalKm / globalConsumableLiters : 0,
       pendingAlertsCount: oilAlerts.length,
     };
   }, [vehicles, drivers, fuelRecords, maintenanceRecords, oilAlerts]);
