@@ -4,7 +4,7 @@ import { useFuelRecords } from "../hooks/useFuelRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
 import {
-  Plus, LogOut, ArrowLeft, Trash2, Gauge, Info,
+  Plus, LogOut, ArrowLeft, Trash2, Edit2, Gauge, Info,
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2
 } from "lucide-react";
 import { generateVoucher } from "../services/documentGenerator";
@@ -71,6 +71,14 @@ export function Fuel() {
       setGeneratingVoucher(null);
     }
   }
+
+  const handleEdit = (recordId: string) => {
+    const record = records.find(r => r.id === recordId);
+    if (record) {
+      setEditingRecord(record as any);
+      setFuelModalOpen(true);
+    }
+  };
 
   const getVehicle = (vehicleId: string) => vehicles.find((v) => v.id === vehicleId);
   const getVehicleName = (vehicleId: string) => {
@@ -352,6 +360,9 @@ export function Fuel() {
                                     >
                                       {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                                     </button>
+                                    <button onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition" title="Editar">
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
                                     <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
                                       <Trash2 className="w-4 h-4" />
                                     </button>
@@ -510,6 +521,9 @@ export function Fuel() {
                               title="Gerar Comprovante (PDF)"
                             >
                               {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                            </button>
+                            <button onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition" title="Editar">
+                              <Edit2 className="w-4 h-4" />
                             </button>
                             <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
                               <Trash2 className="w-4 h-4" />
