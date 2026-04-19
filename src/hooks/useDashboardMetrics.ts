@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { FuelRecord } from "../types";
 
 interface DashboardMetrics {
   vehiclesActive: number;
@@ -188,9 +189,6 @@ export function useDashboardMetrics(vehicleId?: string) {
         const isFull = r.is_full_tank !== false;
 
         if (idx > 0) {
-          const prev = vRecords[idx - 1];
-          const dist = r.km_digital - prev.km_digital;
-          
           if (isFull) {
             if (lastFullRecord) {
               const segmentDist = r.km_digital - lastFullRecord.km_digital;

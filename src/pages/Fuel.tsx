@@ -10,6 +10,7 @@ import {
 import { generateVoucher } from "../services/documentGenerator";
 import FuelModal from "../components/fuel/FuelModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { FuelRecord } from "../types";
 
 interface TrechoData {
   recordId: string;
@@ -18,7 +19,7 @@ interface TrechoData {
   kmInicial: number;
   kmFinal: number;
   distancia: number;
-  litros: number;
+  liters: number;
   kmPorLitro: number;
   valorTotal: number;
   posto: string;
@@ -47,7 +48,7 @@ export function Fuel() {
       
       const details: Record<string, string | number> = {
         "Posto": trecho.posto,
-        "Litros": `${trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L`,
+        "Litros": `${trecho.liters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L`,
         "KM Registrado": trecho.kmFinal.toLocaleString("pt-BR")
       };
 
@@ -106,15 +107,16 @@ export function Fuel() {
 
       result[vehicleId] = vehicleRecords.map((record, index) => {
         const isFirst = index === 0;
-        const prev = !isFirst ? vehicleRecords[index - 1] : null;
-        const distancia = prev ? record.km_digital - prev.km_digital : 0;
+      result[vehicleId] = vehicleRecords.map((record, idx) => {
+        const isFirst = idx === 0;
+        const distancia = idx > 0 ? record.km_digital - vehicleRecords[idx - 1].km_digital : 0;
         
         let kmPorLitro = 0;
-        const isFull = record.is_full_tank !== false; // Default to true if undefined
+        const isFull = record.is_full_tank !== false;
 
-        if (isFull) {
-          if (lastFullRecord) {
-            const totalDistance = record.km_digital - lastFullRecord.km_digital;
+        if (idx > 0) {
+          if (isFull) {
+            const totalDistance = record.km_digital - (lastFullRecord?.km_digital || vehicleRecords[0].km_digital);
             const totalLiters = pendingLiters + record.liters;
             kmPorLitro = totalLiters > 0 ? totalDistance / totalLiters : 0;
           }
@@ -299,6 +301,9 @@ export function Fuel() {
             Novo Abastecimento
           </button>
 
+          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
+            <button
+              onClick={() => setViewMode("timeline")}
               className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
             >
               Timeline
@@ -464,7 +469,7 @@ export function Fuel() {
                                       </div>
                                       <div className="bg-gray-50 rounded-lg p-2 text-center">
                                         <p className="text-xs text-gray-400">Litros</p>
-                                        <p className="font-semibold text-gray-800 text-sm">{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</p>
+                                        <p className="font-semibold text-gray-800 text-sm">{trecho.liters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</p>
                                       </div>
                                       <div className={`rounded-lg p-2 text-center ${trecho.kmPorLitro === -1 ? "bg-gray-50 italic" : trecho.kmPorLitro >= 3 ? "bg-emerald-50" : trecho.kmPorLitro >= 2 ? "bg-amber-50" : "bg-red-50"
                                         }`}>
@@ -482,7 +487,7 @@ export function Fuel() {
                                 <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
                                   <span>KM: {trecho.kmFinal.toLocaleString("pt-BR")}</span>
                                   <span>•</span>
-                                  <span>{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} litros</span>
+                                  <span>{trecho.liters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} litros</span>
                                   {trecho.isFull === false && (
                                     <>
                                       <span>•</span>
@@ -547,7 +552,7 @@ export function Fuel() {
                             <span className="font-medium text-gray-900">{trecho.distancia.toLocaleString("pt-BR")} km</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.liters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">R$ {trecho.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-3 text-sm text-center">
                           {trecho.isFirst ? (

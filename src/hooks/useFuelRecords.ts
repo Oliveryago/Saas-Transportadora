@@ -16,6 +16,7 @@ export function useFuelRecords(vehicleId?: string) {
       setError(null);
 
       let query = supabase
+        .from("fuel_records")
         .select("id, tenant_id, vehicle_id, driver_id, date, km_digital, km_photo_url, liters, value_brl, arla_liters, arla_price_per_liter, fuel_station, fuel_type, price_per_liter, has_discount, discount_value, validations, is_full_tank, created_at, updated_at")
         .eq("tenant_id", tenant.id);
 
