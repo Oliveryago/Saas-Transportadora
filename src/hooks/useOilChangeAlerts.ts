@@ -72,9 +72,9 @@ export function useOilChangeAlerts() {
             const currentKm = kmMap?.get(alert.vehicle_id) ?? vehicle.current_km;
 
             if (alert.alert_type === "km" || alert.alert_type === "both") {
-                if (alert.last_change_km && alert.km_interval) {
-                    const nextChangeKm = alert.last_change_km + alert.km_interval;
-                    // Alert when current KM is within 1000km of the next change
+                if (alert.last_change_km !== undefined && alert.km_interval !== undefined) {
+                    const nextChangeKm = Number(alert.last_change_km) + Number(alert.km_interval);
+                    // Alert when current KM is within 1000km of the next change or already passed it
                     if (currentKm >= nextChangeKm - 1000) return true;
                 }
             }

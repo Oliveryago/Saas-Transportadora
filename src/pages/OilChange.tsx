@@ -39,10 +39,14 @@ export function OilChange() {
         // Use the provided KM (from fuel records) if available, otherwise fallback to vehicle.current_km
         const currentKm = kmMap.get(alert.vehicle_id) ?? vehicle?.current_km ?? 0;
 
-        if ((alert.alert_type === "km" || alert.alert_type === "both") && alert.last_change_km && alert.km_interval) {
-            const nextKm = alert.last_change_km + alert.km_interval;
+        if ((alert.alert_type === "km" || alert.alert_type === "both") && alert.last_change_km !== undefined && alert.km_interval !== undefined) {
+            const nextKm = Number(alert.last_change_km) + Number(alert.km_interval);
             const remaining = nextKm - currentKm;
-            parts.push(`${remaining > 0 ? remaining.toLocaleString("pt-BR") : 0} km restantes`);
+            if (remaining > 0) {
+                parts.push(`${remaining.toLocaleString("pt-BR")} km restantes`);
+            } else {
+                parts.push(`Atrasado em ${Math.abs(remaining).toLocaleString("pt-BR")} km`);
+            }
         }
 
         if ((alert.alert_type === "date" || alert.alert_type === "both") && alert.last_change_date && alert.days_interval) {
