@@ -150,10 +150,10 @@ const runTesseractOCR = async (file: File): Promise<string> => {
 };
 
 /**
- * Extrai texto de um PDF renderizando-o para imagem e usando OCR (Método Universal)
+ * Extrai texto de um PDF usando PDF.js (Via Texto Digital ou OCR Fallback)
  */
 const extractTextFromPDF = async (file: File): Promise<string> => {
-  console.log("%cRenderizando PDF para OCR de alta precisão (V3.0)...", "color: #4f46e5; font-weight: bold;");
+  console.log("%cIniciando extração inteligente de PDF (Digital + OCR)...", "color: #4f46e5; font-weight: bold;");
   
   try {
     if (!(window as any).pdfjsLib) {
@@ -168,40 +168,37 @@ const extractTextFromPDF = async (file: File): Promise<string> => {
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
-    // Renderiza a página
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 3.0 }); // Aumentado para 3x para nitidez máxima
+
+    // PASSO 1: Tenta extrair a camada de texto digital primeiro (MUITO mais rápido e preciso)
+    const textContent = await page.getTextContent();
+    const digitalText = textContent.items.map((item: any) => item.str).join(' ');
     
+    // Se encontrar um CPF ou NOME na camada de texto, usa ela
+    if (digitalText.length > 50 && (digitalText.includes('.') || digitalText.includes('-'))) {
+      console.log("%cTexto DIGITAL detectado no PDF. Extração instantânea concluída.", "color: #059669; font-weight: bold;");
+      return digitalText;
+    }
+
+    // PASSO 2: FALLBACK PARA OCR (Se o PDF for apenas uma imagem/scaneamento)
+    console.log("%cPDF sem camada de texto. Renderizando para OCR...", "color: #d97706; font-weight: bold;");
+    const viewport = page.getViewport({ scale: 3.0 });
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.height = viewport.height;
     canvas.width = viewport.width;
 
-    if (!context) throw new Error("Erro no canvas");
-
-    // Fundo branco para garantir contraste
+    if (!context) throw new Error("Erro canvas");
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
-
     await page.render({ canvasContext: context, viewport }).promise;
 
-    // APLICAR FILTRO DE ALTO CONTRASTE (Preto e Branco) para ajudar o OCR
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      const threshold = 180; // Aproxima de preto se for escuro, branco se for claro
-      const val = avg < threshold ? 0 : 255;
-      data[i] = data[i+1] = data[i+2] = val;
-    }
-    context.putImageData(imageData, 0, 0);
-
+    // Converte para imagem e manda pro Tesseract
     return new Promise((resolve, reject) => {
       canvas.toBlob(async (blob) => {
         if (!blob) return reject("Erro no Blob");
         try {
-          const imageFile = new File([blob], "cnh_high_res.png", { type: "image/png" });
+          const imageFile = new File([blob], "cnh_ocr.png", { type: "image/png" });
           const text = await runTesseractOCR(imageFile);
           resolve(text);
         } catch (err) { reject(err); }
@@ -209,10 +206,11 @@ const extractTextFromPDF = async (file: File): Promise<string> => {
     });
 
   } catch (error) {
-    console.error("Erro PDF OCR:", error);
+    console.error("Erro no processamento do PDF:", error);
     throw new Error("Não foi possível ler o PDF.");
   }
 };
+
 
 
 
