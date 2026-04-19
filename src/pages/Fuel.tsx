@@ -350,7 +350,7 @@ export function Fuel() {
 
                                   <div className="flex items-center gap-3">
                                     <span className="text-sm font-medium text-gray-700">
-                                      R$ {trecho.valorTotal.toFixed(2)}
+                                      R$ {trecho.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                     <button
                                       onClick={() => handleGenerateVoucher(trecho)}
