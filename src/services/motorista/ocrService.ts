@@ -10,61 +10,95 @@ export interface OCRResult {
   validade_cnh: string;
   data_nascimento: string;
   confidence: number;
+  rawText?: string; // Campo novo para debug do texto bruto
 }
 
 /**
- * Função interna para simular o comportamento de uma IA de OCR
+ * Tenta extrair dados usando padrões (Regex)
  */
-const getMockOCRData = (): OCRResult => ({
-  nome_completo: "JOÃO DA SILVA MOTORISTA MOCK",
-  cpf: "123.456.789-00",
-  numero_cnh: "9876543210-0",
-  categoria_cnh: "AD",
-  validade_cnh: "2030-12-31",
-  data_nascimento: "1985-05-20",
-  confidence: 0.98,
-});
+const extractDataHeuristically = (text: string): OCRResult => {
+  console.log("Iniciando extração heurística no texto bruto...");
+
+  // Regex para CPF
+  const cpfMatch = text.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/) || text.match(/\d{11}/);
+  
+  // Regex para Datas (DD/MM/AAAA) - Pega a primeira como nascimento e subsequente como validade
+  const dates = text.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+  
+  // Regex para Número da CNH (Geralmente 11 dígitos sequenciais)
+  const cnhMatch = text.match(/\d{11}/);
+
+  // Tentativa de achar nome (Geralmente em caixa alta, antes do CPF ou no topo)
+  // Nota: Em arquivos binários/fotos, isso raramente funcionará sem OCR real.
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+  const potentialName = lines.find(l => /^[A-Z\s]{10,}$/.test(l)) || "";
+
+  return {
+    nome_completo: potentialName,
+    cpf: cpfMatch ? cpfMatch[0] : "",
+    numero_cnh: cnhMatch ? cnhMatch[0] : "",
+    categoria_cnh: "", // Difícil pegar sem OCR/Contexto
+    validade_cnh: dates.length > 1 ? dates[1].split('/').reverse().join('-') : "",
+    data_nascimento: dates.length > 0 ? dates[0].split('/').reverse().join('-') : "",
+    confidence: (cpfMatch || dates.length > 0) ? 0.3 : 0,
+    rawText: text.substring(0, 1000) // Retorna os primeiros 1000 caracteres para análise
+  };
+};
 
 /**
- * PONTO DE INTEGRAÇÃO FUTURA:
- * Aqui você deve plugar a chamada real para sua API (Axios, Fetch, etc.)
+ * Lê o conteúdo do arquivo
  */
-const callExternalOCRProvider = async (file: File): Promise<OCRResult> => {
-  // Exemplo de como ficaria no futuro:
-  // const formData = new FormData();
-  // formData.append("file", file);
-  // const response = await api.post("/ocr/cnh", formData);
-  // return response.data;
-
-  // Por enquanto, retorna o mock
-  return getMockOCRData();
+const readFileAsText = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject("Erro ao ler arquivo");
+    
+    // Se for PDF, tentamos ler como texto. Se for imagem, virá binário.
+    reader.readAsText(file);
+  });
 };
 
 export const ocrService = {
   /**
-   * Processamento principal da CNH
+   * Processamento principal da CNH (CONTEÚDO REAL)
    */
   async processCNH(file: File): Promise<OCRResult> {
-    console.log("Iniciando processamento de CNH:", file.name);
-
-    // Simular delay de processamento (REDE/IA)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    console.log("Processando arquivo real:", file.name, "Tipo:", file.type);
 
     try {
-      // Chama o provedor (atual mock, futuro real)
-      const data = await callExternalOCRProvider(file);
-      return data;
+      // 1. Lê o conteúdo bruto do arquivo
+      const rawContent = await readFileAsText(file);
+
+      // 2. Se for imagem, avisamos que o texto é binário/ilegível
+      if (file.type.startsWith('image/')) {
+        console.warn("Arquivo de imagem detectado. O texto bruto será binário e ilegível sem Tesseract.js.");
+        return {
+          nome_completo: "",
+          cpf: "",
+          numero_cnh: "",
+          categoria_cnh: "",
+          validade_cnh: "",
+          data_nascimento: "",
+          confidence: 0,
+          rawText: "[CONTEÚDO BINÁRIO DEMAIS PARA EXTRAÇÃO MANUAL - IMAGEM DETECTADA]"
+        };
+      }
+
+      // 3. Tenta extrair dados via heurística (útil para PDFs digitais com camada de texto)
+      const extracted = extractDataHeuristically(rawContent);
+      
+      console.log("Resultado da Extração Heurística:", extracted);
+      return extracted;
     } catch (error) {
-      console.error("Falha no processamento OCR:", error);
-      throw new Error("Não foi possível extrair os dados do documento.");
+      console.error("Erro no processamento do arquivo:", error);
+      throw new Error("Falha ao ler o conteúdo do arquivo.");
     }
   },
 
-  /**
-   * Compara dados extraídos via OCR com dados já existentes
-   */
   compareData(ocrData: any, manualData: any) {
-    return ocrData.cpf?.replace(/\D/g, "") === manualData.cpf?.replace(/\D/g, "");
+    const clean = (s: string) => s?.replace(/\D/g, "") || "";
+    return clean(ocrData.cpf) === clean(manualData.cpf);
   }
 };
 
