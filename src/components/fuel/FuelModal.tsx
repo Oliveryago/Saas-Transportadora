@@ -168,7 +168,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Litros *</label>
               <input type="number" value={liters || ""} onChange={(e) => setLiters(parseFloat(e.target.value) || 0)}
-                step="0.01" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+                step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Preço/Litro (R$) *</label>
@@ -193,7 +193,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Litros de Arla *</label>
                     <input type="number" value={arlaLiters || ""} onChange={(e) => setArlaLiters(parseFloat(e.target.value) || 0)}
-                      step="0.01" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+                      step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Preço/Litro Arla (R$) *</label>

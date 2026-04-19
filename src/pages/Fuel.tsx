@@ -44,7 +44,7 @@ export function Fuel() {
       
       const details: Record<string, string | number> = {
         "Posto": trecho.posto,
-        "Litros": `${trecho.litros.toFixed(2)} L`,
+        "Litros": `${trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L`,
         "KM Registrado": trecho.kmFinal.toLocaleString("pt-BR")
       };
 
@@ -194,7 +194,7 @@ export function Fuel() {
           </div>
           <div className="bg-white rounded-lg shadow p-5">
             <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Litros Total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{totalLiters.toFixed(0)}L</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })}L</p>
           </div>
           <div className="bg-white rounded-lg shadow p-5">
             <p className="text-gray-500 text-xs uppercase tracking-wide font-medium">Gasto Total</p>
@@ -417,7 +417,7 @@ export function Fuel() {
                                       </div>
                                       <div className="bg-gray-50 rounded-lg p-2 text-center">
                                         <p className="text-xs text-gray-400">Litros</p>
-                                        <p className="font-semibold text-gray-800 text-sm">{trecho.litros.toFixed(1)} L</p>
+                                        <p className="font-semibold text-gray-800 text-sm">{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</p>
                                       </div>
                                       <div className={`rounded-lg p-2 text-center ${trecho.kmPorLitro >= 3 ? "bg-emerald-50" : trecho.kmPorLitro >= 2 ? "bg-amber-50" : "bg-red-50"
                                         }`}>
@@ -435,7 +435,7 @@ export function Fuel() {
                                 <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
                                   <span>KM: {trecho.kmFinal.toLocaleString("pt-BR")}</span>
                                   <span>•</span>
-                                  <span>{trecho.litros.toFixed(1)} litros</span>
+                                  <span>{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} litros</span>
                                 </div>
                               </div>
                             </div>
@@ -494,7 +494,7 @@ export function Fuel() {
                             <span className="font-medium text-gray-900">{trecho.distancia.toLocaleString("pt-BR")} km</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.litros.toFixed(1)} L</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">R$ {trecho.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-3 text-sm text-center">
                           {trecho.isFirst ? (
