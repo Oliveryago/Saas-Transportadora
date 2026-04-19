@@ -107,8 +107,6 @@ export function Fuel() {
 
       result[vehicleId] = vehicleRecords.map((record, index) => {
         const isFirst = index === 0;
-      result[vehicleId] = vehicleRecords.map((record, index) => {
-        const isFirst = index === 0;
         const prev = !isFirst ? vehicleRecords[index - 1] : null;
         const distancia = prev ? record.km_digital - prev.km_digital : 0;
         
