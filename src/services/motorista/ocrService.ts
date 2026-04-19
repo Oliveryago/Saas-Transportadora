@@ -13,40 +13,79 @@ export interface OCRResult {
   data_nascimento: string;
   confidence: number;
   rawText?: string;
-  method?: 'heuristic' | 'tesseract' | 'none'; // Identifica o método usado
+  method?: 'heuristic' | 'tesseract' | 'none';
 }
 
 /**
- * Tenta extrair dados usando padrões (Regex)
+ * Tenta extrair dados usando padrões (Regex) melhorados
  */
 const extractDataHeuristically = (text: string): OCRResult => {
-  console.log("Iniciando extração heurística no texto obtido...");
+  // LOG ULTRA VISÍVEL
+  console.clear();
+  console.log("%c--- SISTEMA DE OCR V2.0 ATIVO ---", "background: #00ff00; color: black; font-size: 20px; padding: 10px; border-radius: 8px;");
 
-  // Regex para CPF (considerando possíveis falhas de leitura do OCR)
-  const cpfMatch = text.match(/\d{3}[.\s]?\d{3}[.\s]?\d{3}[-\s]?\d{2}/) || text.match(/\d{11}/);
+  // Melhora na busca do Nome
+  let nome = "";
+  const lines = text.split('\n').map(l => l.trim().toUpperCase());
   
-  // Regex para Datas (DD/MM/AAAA ou variações comuns de OCR)
-  const dates = text.match(/\d{2}[\/\-]\d{2}[\/\-]\d{4}/g) || [];
-  
-  // Regex para Número da CNH (11 dígitos, às vezes espalhados)
-  const cnhMatch = text.match(/\d{11}/);
+  // 1. Tenta achar especificamente após a palavra NOME
+  const nomeMatch = text.match(/NOME[ ]*(COMPLETO)?[ ]*[:\-]?([A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]{10,})/i);
+  if (nomeMatch && nomeMatch[2]) {
+    nome = nomeMatch[2].trim();
+  } else {
+    // 2. Procura a maior linha em caixa alta que pareça um nome
+    nome = lines.find(l => 
+      l.length > 10 && 
+      /^[A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]+$/.test(l) && 
+      !l.includes("CNH") && !l.includes("BRASIL") && !l.includes("DENTIDADE")
+    ) || "";
+  }
 
-  // Tentativa de achar nome (Linhas em caixa alta)
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-  // Geralmente o nome do motorista na CNH está no topo ou após "NOME"
-  const potentialName = lines.find(l => /^[A-Z\s]{10,}$/.test(l)) || "";
+  // CPF (Prioriza o que tem pontos e traço)
+  const cpfWithMask = text.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/);
+  const all11Digits = text.match(/\d{11}/g) || [];
+  const cpfFound = cpfWithMask ? cpfWithMask[0] : (all11Digits.length > 0 ? all11Digits[0] : "");
+  const cpf = cpfFound.replace(/[^0-9]/g, "");
 
-  return {
-    nome_completo: potentialName,
-    cpf: cpfMatch ? cpfMatch[0].replace(/\s/g, "") : "",
-    numero_cnh: cnhMatch ? cnhMatch[0] : "",
-    categoria_cnh: (text.match(/\s([ABCDE]{1,2})\s/) || [])[1] || "",
-    validade_cnh: dates.length > 1 ? dates[1].replace(/\//g, '-').split('-').reverse().join('-') : "",
-    data_nascimento: dates.length > 0 ? dates[0].replace(/\//g, '-').split('-').reverse().join('-') : "",
-    confidence: (cpfMatch || dates.length > 0) ? 0.7 : 0.1,
+  // Registro/CNH (Cuidado para não ser igual ao CPF)
+  let cnh = "";
+  const registroMatch = text.match(/REGISTRO[ ]*[:\- ]*[ ]*(\d{11})/i);
+  if (registroMatch) {
+    cnh = registroMatch[1];
+  } else {
+    // Pega o primeiro número de 11 dígitos que NÃO seja o CPF
+    cnh = all11Digits.find(n => n !== cpfFound && n !== cpf) || (all11Digits[0] || "");
+  }
+
+  const dates = text.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
+  const catMatch = text.match(/CAT[.\s]*([A-E]{1,2})/i);
+
+  const result = {
+    nome_completo: nome.split('\n')[0].trim(),
+    cpf,
+    numero_cnh: cnh.replace(/\D/g, ""),
+    categoria_cnh: catMatch ? catMatch[1] : "",
+    validade_cnh: dates.length > 1 ? dates[1].split('/').reverse().join('-') : "",
+    data_nascimento: dates.length > 0 ? dates[0].split('/').reverse().join('-') : "",
+    confidence: (cpf || nome) ? 0.8 : 0.1,
     rawText: text
   };
+
+  console.log("%cTEXTO BRUTO QUE O SISTEMA LEU:", "font-weight: bold; font-size: 14px; color: #4f46e5;");
+  console.log(text);
+  
+  console.log("%cTABELA DE EXTRAÇÃO:", "font-weight: bold; color: green;");
+  console.table({
+    "Nome Detectado": result.nome_completo,
+    "CPF": result.cpf,
+    "CNH (Registro)": result.numero_cnh,
+    "Data Nasc": result.data_nascimento,
+    "Total Datas": dates.length
+  });
+
+  return result;
 };
+
 
 /**
  * Executa OCR real usando Tesseract.js
@@ -54,7 +93,7 @@ const extractDataHeuristically = (text: string): OCRResult => {
 const runTesseractOCR = async (file: File): Promise<string> => {
   console.log("Iniciando motor Tesseract.js...");
   const worker = await createWorker('por+eng', 1, {
-    logger: m => console.log("[Tesseract Progress]:", m.status, Math.round(m.progress * 100) + "%")
+    logger: m => console.log("[Tesseract]:", m.status, Math.round(m.progress * 100) + "%")
   });
   
   try {
@@ -62,12 +101,11 @@ const runTesseractOCR = async (file: File): Promise<string> => {
     return text;
   } finally {
     await worker.terminate();
-    console.log("Motor Tesseract.js encerrado.");
   }
 };
 
 /**
- * Lê o conteúdo do arquivo como texto (apenas para PDFs digitais)
+ * Lê o conteúdo do arquivo como texto
  */
 const readFileAsText = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -79,45 +117,34 @@ const readFileAsText = (file: File): Promise<string> => {
 };
 
 export const ocrService = {
-  /**
-   * Processamento principal da CNH (AGORA COM OCR REAL)
-   */
   async processCNH(file: File): Promise<OCRResult> {
     const isImage = file.type.startsWith('image/');
-    console.log("CNH Service:", file.name, "Tipo:", file.type, "Extensão:", isImage ? "Imagem" : "Documento");
-
+    
     try {
       let textContent = "";
       let method: OCRResult['method'] = 'none';
 
       if (isImage) {
-        // FLUXO 1: IMAGEM -> OCR REAL
         textContent = await runTesseractOCR(file);
         method = 'tesseract';
       } else {
-        // FLUXO 2: PDF -> TENTA TEXTO BRUTO PRIMEIRO
         const raw = await readFileAsText(file);
-        
-        // Verifica se o PDF tem texto útil (heurística mínima)
-        if (raw.length > 50 && (raw.includes('CPF') || /\d{3}/.test(raw))) {
+        // Tenta detectar se o PDF tem texto real
+        if (raw.length > 100) {
            textContent = raw;
            method = 'heuristic';
         } else {
-           // PDF é uma imagem? No momento não temos renderizador de PDF para OCR.
-           // Mas poderíamos sinalizar que o PDF é escaneado e precisa de motor.
-           console.warn("PDF parece ser uma imagem. Texto bruto insuficiente.");
-           textContent = "[Aviso: PDF escaneado precisa de motor de visão para extração completa]";
+           textContent = "[PDF sem camada de texto legível]";
            method = 'none';
         }
       }
 
-      // Processa o texto (seja do OCR ou do PDF)
       const result = extractDataHeuristically(textContent);
       return { ...result, method };
 
     } catch (error) {
-      console.error("Erro crítico no processamento CNH:", error);
-      throw new Error("Não foi possível processar o documento enviado.");
+      console.error("Erro no processamento:", error);
+      throw new Error("Falha ao processar documento.");
     }
   },
 
@@ -126,5 +153,6 @@ export const ocrService = {
     return clean(ocrData.cpf) === clean(manualData.cpf);
   }
 };
+
 
 

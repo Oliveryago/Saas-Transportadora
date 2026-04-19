@@ -7,6 +7,9 @@ import { PageSkeleton } from "./components/shared/SkeletonLoader";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { Login } from "./pages/Login";
 
+// LOG DE VERSÃO PARA FORÇAR CACHE
+console.log("%c SISTEMA ATUALIZADO V2.0 - OCR REAL ", "background: red; color: white; font-size: 20px;");
+
 // Lazy-loaded pages — code splitting por rota
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const Fleet = lazy(() => import("./pages/Fleet").then(m => ({ default: m.Fleet })));
