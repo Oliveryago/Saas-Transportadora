@@ -31,6 +31,7 @@ export function Sidebar() {
         { to: "/", icon: LayoutDashboard, label: "Dashboard" },
         { to: "/financial", icon: BarChart2, label: "Financeiro" },
         { to: "/fleet", icon: Truck, label: "Frota" },
+        { to: "/drivers", icon: UserCircle, label: "Motoristas" },
         { to: "/fuel", icon: Fuel, label: "Abastecimento" },
         { to: "/maintenance", icon: Wrench, label: "Manutenção" },
         { to: "/oil-change", icon: Droplet, label: "Troca de Óleo" },
@@ -43,7 +44,6 @@ export function Sidebar() {
         { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
         { to: "/settings", icon: Settings, label: "Configurações" },
         { to: "/suppliers", icon: Users, label: "Fornecedores" },
-        { to: "/drivers", icon: UserCircle, label: "Motoristas" },
         { to: "/reports", icon: BarChart2, label: "Relatórios" },
     ];
 

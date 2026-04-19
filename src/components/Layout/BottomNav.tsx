@@ -38,6 +38,7 @@ export function BottomNav() {
   ];
 
   const secondaryItems = [
+    { to: "/drivers", icon: UserCircle, label: "Motoristas" },
     { to: "#search", icon: Search, label: "Busca Rápida", action: () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })) },
     { to: "/oil-change", icon: Droplet, label: "Troca de Óleo" },
     { to: "/tire-change", icon: Disc, label: "Troca de Pneus" },
@@ -48,7 +49,6 @@ export function BottomNav() {
     { to: "/insurance", icon: ShieldCheck, label: "Seguros" },
     { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
     { to: "/suppliers", icon: Users, label: "Fornecedores" },
-    { to: "/drivers", icon: UserCircle, label: "Motoristas" },
     { to: "/financial", icon: BarChart2, label: "Financeiro" },
     { to: "/reports", icon: BarChart2, label: "Relatórios" },
     { to: "/settings", icon: Settings, label: "Configurações" },
