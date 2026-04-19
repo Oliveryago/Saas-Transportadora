@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useWashingRecords } from "../../hooks/useWashingRecords";
 import { useSuppliers } from "../../hooks/useSuppliers";
-import type { WashingRecord, Vehicle, User, VehicleWashType } from "../../types";
+import type { WashingRecord, Vehicle, User, VehicleWashType, Driver } from "../../types";
 import { VEHICLE_WASH_TYPE_LABELS } from "../../types";
 
-interface Props { open: boolean; onClose: () => void; editingRecord?: WashingRecord | null; vehicles: Vehicle[]; drivers: User[]; }
+interface Props { open: boolean; onClose: () => void; editingRecord?: WashingRecord | null; vehicles: Vehicle[]; drivers: Driver[]; }
 
 function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
     const { addRecord, updateRecord } = useWashingRecords();
@@ -75,7 +75,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
                         <label className="block text-sm font-medium text-gray-700 mb-1">Motorista</label>
                         <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Selecione</option>
-                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.nome_completo}</option>)}
                         </select>
                     </div>
                     <div className="relative">

@@ -40,7 +40,7 @@ const extractDataHeuristically = (text: string): OCRResult => {
     nome_completo: potentialName,
     cpf: cpfMatch ? cpfMatch[0].replace(/\s/g, "") : "",
     numero_cnh: cnhMatch ? cnhMatch[0] : "",
-    categoria_cnh: text.match(/\s([ABCDE]{1,2})\s/)?.[1] || "",
+    categoria_cnh: (text.match(/\s([ABCDE]{1,2})\s/) || [])[1] || "",
     validade_cnh: dates.length > 1 ? dates[1].replace(/\//g, '-').split('-').reverse().join('-') : "",
     data_nascimento: dates.length > 0 ? dates[0].replace(/\//g, '-').split('-').reverse().join('-') : "",
     confidence: (cpfMatch || dates.length > 0) ? 0.7 : 0.1,

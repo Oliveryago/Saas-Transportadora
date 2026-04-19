@@ -17,7 +17,7 @@ export function Tolls() {
 
     const totalCost = useMemo(() => records.reduce((a, r) => a + (r.value_brl || 0), 0), [records]);
     const getVehicleName = (id: string) => { const v = vehicles.find((v) => v.id === id); return v ? `${v.license_plate}` : id; };
-    const getDriverName = (id?: string) => { if (!id) return "-"; const d = drivers.find((d) => d.id === id); return d?.name || id; };
+    const getDriverName = (id?: string) => { if (!id) return "-"; const d = drivers.find((d) => d.id === id); return d?.nome_completo || id; };
 
     return (
         <div className="min-h-screen bg-gray-50">
