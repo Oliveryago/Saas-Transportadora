@@ -105,13 +105,13 @@ const runTesseractOCR = async (file: File): Promise<string> => {
 };
 
 /**
- * Extrai texto de um PDF usando PDF.js (via CDN para evitar problemas de build)
+ * Extrai texto de um PDF renderizando-o para imagem e usando OCR (Método Universal)
  */
 const extractTextFromPDF = async (file: File): Promise<string> => {
-  console.log("Iniciando extração inteligente de PDF...");
+  console.log("%cRenderizando PDF para OCR de alta precisão...", "color: #4f46e5; font-weight: bold;");
   
   try {
-    // Carrega o PDF.js dinamicamente se não estiver disponível
+    // 1. Garante que o PDF.js está carregado
     if (!(window as any).pdfjsLib) {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -122,29 +122,47 @@ const extractTextFromPDF = async (file: File): Promise<string> => {
     const pdfjsLib = (window as any).pdfjsLib;
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+    // 2. Carrega o documento
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = "";
+    
+    // 3. Renderiza a PRIMEIRA PÁGINA (onde ficam os dados da CNH) em um Canvas
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 }); // Escala 2x para melhor precisão no OCR
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + "\n";
-    }
+    if (!context) throw new Error("Não foi possível criar contexto do canvas");
 
-    return fullText;
-  } catch (error) {
-    console.error("Erro ao ler PDF com PDF.js:", error);
-    // Fallback: tenta ler como texto simples se o PDF.js falhar
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    // 4. Converte o Canvas para Blob (imagem) e manda para o motor Tesseract que já temos
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject("Erro ao ler arquivo");
-      reader.readAsText(file);
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          reject("Erro ao converter PDF para imagem");
+          return;
+        }
+        try {
+          // Criamos um File a partir do Blob para o Tesseract aceitar
+          const imageFile = new File([blob], "cnh_page.png", { type: "image/png" });
+          const text = await runTesseractOCR(imageFile);
+          resolve(text);
+        } catch (err) {
+          reject(err);
+        }
+      }, 'image/png');
     });
+
+  } catch (error) {
+    console.error("Erro no processamento PDF -> OCR:", error);
+    throw new Error("Não foi possível ler o PDF. Tente uma foto da CNH.");
   }
 };
+
 
 export const ocrService = {
   async processCNH(file: File): Promise<OCRResult> {
