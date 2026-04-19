@@ -1,17 +1,13 @@
-import { createWorker } from 'tesseract.js';
+import { supabase } from '../../lib/supabase';
 
 /**
- * Serviço de OCR para Processamento de CNH - V7.0
+ * Serviço de OCR para Processamento de CNH - V8.0
  * 
- * Realidade:
- * - PDFs da Carteira Digital de Trânsito (CDT) usam codificação de fonte customizada
- * - Letras saem embaralhadas tanto no texto digital quanto no OCR
- * - Números (CPF, datas) são extraídos corretamente pelo texto digital
+ * Estratégia Profissional:
+ * - PDF: Renderiza páginas em alta resolução (3x) -> Converte para Base64 -> Envia para Supabase Edge Function (Google Vision)
+ * - Imagem: Converte para Base64 -> Envia para Supabase Edge Function (Google Vision)
  * 
- * Estratégia:
- * - PDF: Extrai texto digital de todas as páginas → pega CPF + datas
- * - Imagem (foto): Usa Tesseract OCR (funciona bem com fotos tiradas da CNH física)
- * - Campos não detectados ficam vazios para preenchimento manual
+ * Vantagem: O Google Vision lê o "desenho" das letras, ignorando codificações de fonte corrompidas do PDF.
  */
 
 export interface OCRResult {
@@ -23,259 +19,119 @@ export interface OCRResult {
   data_nascimento: string;
   confidence: number;
   rawText?: string;
-  method?: 'heuristic' | 'tesseract' | 'none';
+  method?: 'heuristic' | 'tesseract' | 'google_vision' | 'none';
 }
 
-// ==========================================
-// PARSER DE CAMPOS DA CNH
-// ==========================================
-const extractDataHeuristically = (text: string): OCRResult => {
-  console.clear();
-  console.log("%c--- SISTEMA DE OCR V7.0 ---", "background: #00ff00; color: black; font-size: 20px; padding: 10px;");
-
-  // ===== CPF =====
-  let cpf = "";
-  // Formato com máscara: 122.469.278-03
-  const cpfMask = text.match(/(\d{3}[.\s]\d{3}[.\s]\d{3}[-.\s]\d{2})/);
-  if (cpfMask) {
-    cpf = cpfMask[1].replace(/\D/g, "");
-  }
-  // Formato sem máscara: procura blocos de 11 dígitos
-  if (!cpf) {
-    const blocks = text.match(/\b\d{11}\b/g) || [];
-    // Filtra blocos que parecem ser CPF (não começam com 4011 que é assinatura digital)
-    for (const b of blocks) {
-      if (!b.startsWith("4011")) {
-        cpf = b;
-        break;
-      }
-    }
-    // Se só tiver blocos com 4011, pega qualquer um
-    if (!cpf && blocks.length > 0) cpf = blocks[0];
-  }
-
-  // ===== DATAS (DD/MM/AAAA) =====
-  const allDates = text.match(/\d{2}\/\d{2}\/\d{4}/g) || [];
-  let dataNasc = "";
-  let dataVal = "";
-
-  for (const d of allDates) {
-    const parts = d.split('/');
-    const year = parseInt(parts[2]);
-    const formatted = parts.reverse().join('-'); // YYYY-MM-DD
-
-    if (year >= 1940 && year <= 2010 && !dataNasc) {
-      dataNasc = formatted;
-    } else if (year >= 2024 && !dataVal) {
-      dataVal = formatted;
-    }
-  }
-
-  // ===== NOME =====
-  let nome = "";
-  const NOT_NAMES = [
-    "REPÚBLICA", "FEDERATIVA", "BRASIL", "MINISTÉRIO", "INFRAESTRUTURA",
-    "SECRETARIA", "NACIONAL", "TRÂNSITO", "SENATRAN", "CONTRAN", "DENATRAN",
-    "DETRAN", "SERPRO", "ASSINADOR", "DEPARTAMENTO", "HABILITAÇÃO",
-    "CARTEIRA", "DOCUMENTO", "CERTIFICADO", "PROVISÓRIA", "MEDIDA",
-    "PORTADOR", "ASSINATURA", "OBSERVAÇÕES", "DIGITAL", "FILIAÇÃO",
-    "PERMISSÃO", "ESTADUAL", "IDENTIDADE", "REGISTRO", "HABILITACAO"
-  ];
-
-  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
-  for (const line of lines) {
-    const clean = line.toUpperCase().trim();
-    if (
-      clean.length >= 10 &&
-      clean.length <= 50 &&
-      clean.split(/\s+/).length >= 2 &&
-      clean.split(/\s+/).length <= 5 &&
-      /^[A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]+$/.test(clean) &&
-      !NOT_NAMES.some(k => clean.includes(k))
-    ) {
-      nome = clean;
-      break;
-    }
-  }
-
-  // ===== REGISTRO (N° CNH) =====
-  let cnh = "";
-  // Procura padrão REGISTRO + número
-  const regPatterns = [
-    /N[°º]\s*REGISTRO\s*[:\-.\s]*(\d{9,11})/i,
-    /REGISTRO\s*[:\-.\s]*(\d{9,11})/i,
-  ];
-  for (const p of regPatterns) {
-    const m = text.match(p);
-    if (m && m[1]) { cnh = m[1]; break; }
-  }
-  // Fallback: segundo bloco de 11 dígitos diferente do CPF
-  if (!cnh) {
-    const all11 = text.match(/\b\d{11}\b/g) || [];
-    for (const n of all11) {
-      if (n !== cpf && !n.startsWith("4011")) {
-        cnh = n;
-        break;
-      }
-    }
-  }
-
-  // ===== CATEGORIA =====
-  let categoria = "";
-  const catPatterns = [
-    /CAT[.\s]*HAB[.\s]*[:\s]*([A-E]{1,3})/i,
-    /CATEGORIA[:\s]*([A-E]{1,3})/i,
-    /CAT[.\s]+([A-E]{1,3})/i,
-  ];
-  for (const p of catPatterns) {
-    const m = text.match(p);
-    if (m && m[1]) { categoria = m[1].toUpperCase(); break; }
-  }
-
-  // ===== RESULTADO =====
-  const fieldsFound = [cpf, dataNasc, dataVal, nome, cnh, categoria].filter(f => f.length > 0).length;
-  
-  const result: OCRResult = {
-    nome_completo: nome.replace(/\d/g, "").replace(/\s{2,}/g, " ").trim(),
-    cpf,
-    numero_cnh: cnh.replace(/\D/g, ""),
-    categoria_cnh: categoria,
-    validade_cnh: dataVal,
-    data_nascimento: dataNasc,
-    confidence: fieldsFound / 6,
-    rawText: text
-  };
-
-  // Debug
-  console.log("%cTEXTO BRUTO:", "color: #4f46e5; font-weight: bold;");
-  console.log(text);
-  
-  console.log("%cCAMPOS EXTRAÍDOS:", "color: green; font-weight: bold; font-size: 14px;");
-  console.table({
-    "Nome": result.nome_completo || "⚠️ Não detectado (preencher manualmente)",
-    "CPF": result.cpf || "⚠️ Não detectado",
-    "CNH": result.numero_cnh || "⚠️ Não detectado (preencher manualmente)",
-    "Nascimento": result.data_nascimento || "⚠️ Não detectado",
-    "Validade": result.validade_cnh || "⚠️ Não detectado",
-    "Categoria": result.categoria_cnh || "⚠️ Não detectada (preencher manualmente)",
-    "Campos OK": `${fieldsFound}/6`
+/**
+ * Converte um Blob/File para Base64
+ */
+const fileToBase64 = (file: File | Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
   });
-
-  if (fieldsFound < 6) {
-    console.log("%c⚠️ Alguns campos não foram detectados automaticamente. O PDF da Carteira Digital usa codificação especial que limita a leitura de alguns campos. Preencha manualmente os campos vazios.", "color: #d97706; font-size: 12px;");
-  }
-
-  return result;
 };
 
-// ==========================================
-// TESSERACT OCR (apenas para IMAGENS/FOTOS)
-// ==========================================
-const runTesseractOCR = async (file: File): Promise<string> => {
-  console.log("[OCR] Iniciando Tesseract.js para imagem...");
-  const worker = await createWorker('por+eng', 1, {
-    logger: m => {
-      if (m.progress > 0 && m.progress < 1) {
-        console.log(`[OCR] ${m.status}: ${Math.round(m.progress * 100)}%`);
-      }
-    }
-  });
-  try {
-    const { data: { text } } = await worker.recognize(file);
-    return text;
-  } finally {
-    await worker.terminate();
+/**
+ * Carrega a biblioteca PDF.js dinamicamente se necessário
+ */
+const loadPDFJS = async () => {
+  if (!(window as any).pdfjsLib) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    document.head.appendChild(script);
+    await new Promise(r => { script.onload = r; });
   }
+  const lib = (window as any).pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return lib;
 };
 
-// ==========================================
-// EXTRAÇÃO DE PDF (texto digital direto)
-// ==========================================
-const extractTextFromPDF = async (file: File): Promise<string> => {
-  console.log("%c[PDF] Extraindo texto digital de todas as páginas...", "color: #4f46e5; font-weight: bold;");
+/**
+ * Renderiza uma página de PDF para um Blob de imagem (PNG)
+ */
+const renderPDFPageToBlob = async (pdf: any, pageNum: number): Promise<Blob> => {
+  const page = await pdf.getPage(pageNum);
+  const viewport = page.getViewport({ scale: 3.5 }); // 3.5x para alta definição no Google Vision
   
-  try {
-    // Carrega PDF.js
-    if (!(window as any).pdfjsLib) {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      document.head.appendChild(script);
-      await new Promise(r => { script.onload = r; });
-    }
-
-    const pdfjsLib = (window as any).pdfjsLib;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const totalPages = pdf.numPages;
-    
-    console.log(`[PDF] ${totalPages} página(s)`);
-
-    let fullText = "";
-
-    for (let i = 1; i <= totalPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      
-      // Reconstrói texto preservando posição
-      let pageText = "";
-      let lastY: number | null = null;
-      
-      for (const item of textContent.items as any[]) {
-        if (!item.str || item.str.trim() === "") continue;
-        
-        // Nova linha quando Y muda significativamente
-        if (lastY !== null && Math.abs(item.transform[5] - lastY) > 3) {
-          pageText += "\n";
-        } else if (pageText.length > 0 && !pageText.endsWith(" ") && !pageText.endsWith("\n")) {
-          pageText += " ";
-        }
-        
-        pageText += item.str;
-        lastY = item.transform[5];
-      }
-      
-      console.log(`[PDF] Pág ${i}: ${pageText.length} chars`);
-      fullText += pageText + "\n";
-    }
-
-    console.log(`[PDF] Total: ${fullText.length} caracteres extraídos`);
-    return fullText;
-
-  } catch (error) {
-    console.error("[PDF] Erro:", error);
-    throw new Error("Não foi possível ler o PDF.");
-  }
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error("Erro ao criar contexto de canvas");
+  
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  
+  // Fundo branco para garantir contraste
+  context.fillStyle = 'white';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  await page.render({ canvasContext: context, viewport }).promise;
+  
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Erro ao gerar Blob da página"));
+    }, 'image/png');
+  });
 };
 
-// ==========================================
-// SERVIÇO PÚBLICO
-// ==========================================
 export const ocrService = {
   async processCNH(file: File): Promise<OCRResult> {
-    const isImage = file.type.startsWith('image/');
+    console.clear();
+    console.log("%c--- SISTEMA DE OCR V8.0 (GOOGLE VISION) ---", "background: #4f46e5; color: white; font-size: 18px; padding: 10px; border-radius: 8px;");
     
     try {
-      let textContent = "";
-      let method: OCRResult['method'] = 'none';
+      let base64Image = "";
+      const isPDF = file.type === 'application/pdf';
 
-      if (isImage) {
-        // Fotos da CNH: usa Tesseract OCR
-        textContent = await runTesseractOCR(file);
-        method = 'tesseract';
+      if (isPDF) {
+        console.log("%c[PDF] Processando PDF profissionalmente...", "color: #4f46e5; font-weight: bold;");
+        const pdfjsLib = await loadPDFJS();
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        // Renderiza apenas a primeira página (normalmente onde estão os dados)
+        // Se precisar de mais, podemos fazer um loop e concatenar ou processar separado
+        console.log("[PDF] Renderizando página 1 em alta resolução...");
+        const pageBlob = await renderPDFPageToBlob(pdf, 1);
+        base64Image = await fileToBase64(pageBlob);
       } else {
-        // PDFs: usa extração de texto digital (rápido e preciso para números)
-        textContent = await extractTextFromPDF(file);
-        method = 'heuristic';
+        console.log("%c[IMAGE] Processando imagem com Google Vision...", "color: #4f46e5; font-weight: bold;");
+        base64Image = await fileToBase64(file);
       }
 
-      const result = extractDataHeuristically(textContent);
-      return { ...result, method };
+      console.log("%c[EDGE FUNCTION] Chamando ocr-cnh no Supabase...", "color: #059669; font-weight: bold;");
+      
+      const { data, error } = await supabase.functions.invoke('ocr-cnh', {
+        body: { image: base64Image }
+      });
 
-    } catch (error) {
-      console.error("Erro fatal:", error);
-      throw new Error("Falha ao processar documento.");
+      if (error) {
+        console.error("Erro na Edge Function:", error);
+        throw new Error(`Erro no servidor de OCR: ${error.message}`);
+      }
+
+      console.log("%c[RESULTADO] Dados extraídos com sucesso!", "color: #059669; font-weight: bold; font-size: 14px;");
+      console.table({
+        "Nome": data.nome_completo,
+        "CPF": data.cpf,
+        "CNH": data.numero_cnh,
+        "Nascimento": data.data_nascimento,
+        "Validade": data.validade_cnh,
+        "Categoria": data.categoria_cnh,
+        "Confiança": `${Math.round(data.confidence * 100)}%`
+      });
+
+      return {
+        ...data,
+        method: 'google_vision'
+      };
+
+    } catch (error: any) {
+      console.error("Erro fatal no OCR V8.0:", error);
+      throw new Error(error.message || "Falha ao processar documento.");
     }
   },
 
