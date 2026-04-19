@@ -105,15 +105,45 @@ const runTesseractOCR = async (file: File): Promise<string> => {
 };
 
 /**
- * Lê o conteúdo do arquivo como texto
+ * Extrai texto de um PDF usando PDF.js (via CDN para evitar problemas de build)
  */
-const readFileAsText = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject("Erro ao ler arquivo");
-    reader.readAsText(file);
-  });
+const extractTextFromPDF = async (file: File): Promise<string> => {
+  console.log("Iniciando extração inteligente de PDF...");
+  
+  try {
+    // Carrega o PDF.js dinamicamente se não estiver disponível
+    if (!(window as any).pdfjsLib) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      document.head.appendChild(script);
+      await new Promise((resolve) => { script.onload = resolve; });
+    }
+
+    const pdfjsLib = (window as any).pdfjsLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = "";
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + "\n";
+    }
+
+    return fullText;
+  } catch (error) {
+    console.error("Erro ao ler PDF com PDF.js:", error);
+    // Fallback: tenta ler como texto simples se o PDF.js falhar
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject("Erro ao ler arquivo");
+      reader.readAsText(file);
+    });
+  }
 };
 
 export const ocrService = {
@@ -128,15 +158,13 @@ export const ocrService = {
         textContent = await runTesseractOCR(file);
         method = 'tesseract';
       } else {
-        const raw = await readFileAsText(file);
-        // Tenta detectar se o PDF tem texto real
-        if (raw.length > 100) {
-           textContent = raw;
-           method = 'heuristic';
-        } else {
-           textContent = "[PDF sem camada de texto legível]";
-           method = 'none';
-        }
+        textContent = await extractTextFromPDF(file);
+        method = 'heuristic';
+      }
+
+      // Se o texto extraído do PDF for muito curto ou parecer binário, avisa
+      if (textContent.length < 50 || textContent.includes('/XObject')) {
+        console.warn("Texto extraído parece insuficiente ou binário. Tentando fallback...");
       }
 
       const result = extractDataHeuristically(textContent);
@@ -153,6 +181,7 @@ export const ocrService = {
     return clean(ocrData.cpf) === clean(manualData.cpf);
   }
 };
+
 
 
 
