@@ -78,7 +78,6 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                 vehicle_id: vehicleId || undefined,
                 implement_id: implementId || undefined,
                 parts,
-                tenant_id: "",
             };
 
             if (editingRecord) {

@@ -87,9 +87,8 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
           ...data,
           km_photo_url: undefined,
           validations: { verified: false, issues: [] },
-          tenant_id: "",
           driver_id: "",
-        });
+        } as any);
       }
       onClose();
     } catch (err) {

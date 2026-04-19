@@ -49,12 +49,11 @@ function ImplementModal({
         });
       } else {
         await addImplement({
-          license_plate: licensePlate,
+          license_plate: licensePlate.toUpperCase(),
           type,
           model,
           active: true,
-          tenant_id: "",
-        });
+        } as any);
       }
       onClose();
     } catch (err) {

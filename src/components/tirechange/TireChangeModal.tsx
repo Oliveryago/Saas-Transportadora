@@ -41,7 +41,7 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
         if (!vehicleId) { setError("Selecione um veículo"); return; }
         setLoading(true);
         try {
-            const data = { vehicle_id: vehicleId, brand: brand || undefined, dimension: dimension || undefined, quantity, km_at_change: kmAtChange || undefined, next_change_km: nextChangeKm || undefined, value_brl: valueBrl || undefined, has_discount: hasDiscount, discount_value: hasDiscount ? discountValue : undefined, date, notes: notes || undefined, tenant_id: "" };
+            const data = { vehicle_id: vehicleId, brand: brand || undefined, dimension: dimension || undefined, quantity, km_at_change: kmAtChange || undefined, next_change_km: nextChangeKm || undefined, value_brl: valueBrl || undefined, has_discount: hasDiscount, discount_value: hasDiscount ? discountValue : undefined, date, notes: notes || undefined };
             if (editingRecord) await updateRecord(editingRecord.id, data);
             else await addRecord(data as any);
             onClose();

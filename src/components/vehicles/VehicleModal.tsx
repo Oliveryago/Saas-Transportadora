@@ -52,13 +52,12 @@ export function VehicleModal({
         });
       } else {
         await addVehicle({
-          license_plate: licensePlate,
+          license_plate: licensePlate.toUpperCase(),
           model,
           year,
           current_km: currentKm,
           active: true,
-          tenant_id: "",
-        });
+        } as any);
       }
       onClose();
     } catch (err: any) {

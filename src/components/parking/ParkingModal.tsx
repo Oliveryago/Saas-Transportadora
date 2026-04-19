@@ -41,7 +41,7 @@ function ParkingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
         if (!entryDate) { setError("Data de entrada obrigatória"); return; }
         setLoading(true);
         try {
-            const data = { vehicle_id: vehicleId, driver_id: driverId || undefined, entry_date: new Date(entryDate).toISOString(), exit_date: exitDate ? new Date(exitDate).toISOString() : undefined, value_brl: valueBrl || undefined, notes: notes || undefined, tenant_id: "" };
+            const data = { vehicle_id: vehicleId, driver_id: driverId || undefined, entry_date: new Date(entryDate).toISOString(), exit_date: exitDate ? new Date(exitDate).toISOString() : undefined, value_brl: valueBrl || undefined, notes: notes || undefined };
             if (editingRecord) await updateRecord(editingRecord.id, data);
             else await addRecord(data as any);
             onClose();

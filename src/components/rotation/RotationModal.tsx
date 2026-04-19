@@ -32,7 +32,7 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
         if (!vehicleId) { setError("Selecione um veículo"); return; }
         setLoading(true);
         try {
-            const data = { vehicle_id: vehicleId, date, current_odometer: currentOdometer || undefined, next_rotation_km: nextRotationKm || undefined, notes: notes || undefined, tenant_id: "" };
+            const data = { vehicle_id: vehicleId, date, current_odometer: currentOdometer || undefined, next_rotation_km: nextRotationKm || undefined, notes: notes || undefined };
             if (editingRecord) await updateRecord(editingRecord.id, data);
             else await addRecord(data as any);
             onClose();
