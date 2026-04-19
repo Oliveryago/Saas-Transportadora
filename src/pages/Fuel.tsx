@@ -93,7 +93,7 @@ export function Fuel() {
           return {
             recordId: record.id,
             vehicleId: record.vehicle_id,
-            date: record.created_at,
+            date: record.date || record.created_at,
             kmInicial: 0,
             kmFinal: record.km_digital,
             distancia: 0,
@@ -112,7 +112,7 @@ export function Fuel() {
         return {
           recordId: record.id,
           vehicleId: record.vehicle_id,
-          date: record.created_at,
+          date: record.date || record.created_at,
           kmInicial: prev.km_digital,
           kmFinal: record.km_digital,
           distancia,
@@ -484,7 +484,7 @@ export function Fuel() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">{trecho.litros.toFixed(1)} L</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">R$ {trecho.valorTotal.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">R$ {trecho.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-3 text-sm text-center">
                           {trecho.isFirst ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs border border-blue-100">

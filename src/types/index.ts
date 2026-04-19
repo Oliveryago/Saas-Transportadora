@@ -113,10 +113,13 @@ export interface FuelRecord {
   tenant_id: string;
   vehicle_id: string;
   driver_id: string;
+  date?: string;
   km_digital: number;
   km_photo_url?: string;
   liters: number;
   value_brl?: number;
+  arla_liters?: number;
+  arla_price_per_liter?: number;
   fuel_station?: string;
   fuel_type?: FuelType;
   price_per_liter?: number;

@@ -61,6 +61,8 @@ context/
 - **Arquivo:** `src/pages/Fuel.tsx`, `src/components/fuel/FuelModal.tsx`
 - **Hook:** `src/hooks/useFuelRecords.ts`
 - **Atenção:** `FuelRecord.invoice_photo_url` já existe no tipo — precisa de UI para upload no fluxo do motorista
+- **Decisões relacionadas:**
+  - [006-fuel-updates.md](context/decisions/006-fuel-updates.md) - Arla Integration & Backdated Logging
 
 ### Global Scale Evolution (Planejado)
 

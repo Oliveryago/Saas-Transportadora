@@ -50,3 +50,4 @@ Sistema SaaS multi-empresa para gestão operacional de transportadoras, permitin
 - [Decision: Alerta via KM Abastecimento](../decisions/004-oil-alert-fuel-km.md)
 - [Feature: Evolução para Escala Global](feature-global-scale-evolution.md)
 - [Decision: Evolução para Escala Global](../decisions/005-global-scale-evolution.md)
+- [Feature: Fuel Updates](feature-fuel-updates.md)

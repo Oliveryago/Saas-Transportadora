@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-04-18] — Feature: Fuel Updates
+### Adicionado
+- `context/intent/feature-fuel-updates.md`
+- `context/decisions/006-fuel-updates.md`
+- Escopo: Adição de customização de `date` nos abastecimentos retroativos, integração do consumo e custos de Arla 32 sem afetar médias de KM/L do Diesel e correção global da máscara de Reais.
+
 ## [2026-04-18] — Feature: Evolução para Escala Global
 
 ### Adicionado

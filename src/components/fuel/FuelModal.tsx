@@ -20,9 +20,13 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   const [liters, setLiters] = useState(0);
   const [fuelType, setFuelType] = useState<FuelType>("diesel_s500");
   const [pricePerLiter, setPricePerLiter] = useState(0);
+  const [hasArla, setHasArla] = useState(false);
+  const [arlaLiters, setArlaLiters] = useState(0);
+  const [arlaPricePerLiter, setArlaPricePerLiter] = useState(0);
   const [hasDiscount, setHasDiscount] = useState(false);
   const [discountValue, setDiscountValue] = useState(0);
   const [fuelStation, setFuelStation] = useState("");
+  const [date, setDate] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,24 +37,34 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   );
 
   const effectivePrice = hasDiscount && discountValue > 0 ? discountValue : pricePerLiter;
-  const totalValue = liters > 0 && effectivePrice > 0 ? liters * effectivePrice : 0;
+  const dieselValue = liters > 0 && effectivePrice > 0 ? liters * effectivePrice : 0;
+  const arlaValue = hasArla && arlaLiters > 0 && arlaPricePerLiter > 0 ? arlaLiters * arlaPricePerLiter : 0;
+  const totalValue = dieselValue + arlaValue;
 
   useEffect(() => {
     if (editingRecord) {
       setVehicleId(editingRecord.vehicle_id);
+      setDate(editingRecord.date || editingRecord.created_at?.split("T")[0] || new Date().toISOString().split("T")[0]);
       setKmDigital(editingRecord.km_digital);
       setLiters(editingRecord.liters);
       setFuelType((editingRecord.fuel_type as FuelType) || "diesel_s500");
       setPricePerLiter(editingRecord.price_per_liter || 0);
+      setHasArla(!!editingRecord.arla_liters);
+      setArlaLiters(editingRecord.arla_liters || 0);
+      setArlaPricePerLiter(editingRecord.arla_price_per_liter || 0);
       setHasDiscount(editingRecord.has_discount || false);
       setDiscountValue(editingRecord.discount_value || 0);
       setFuelStation(editingRecord.fuel_station || "");
     } else {
       setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
+      setDate(new Date().toISOString().split("T")[0]);
       setKmDigital(0);
       setLiters(0);
       setFuelType("diesel_s500");
       setPricePerLiter(0);
+      setHasArla(false);
+      setArlaLiters(0);
+      setArlaPricePerLiter(0);
       setHasDiscount(false);
       setDiscountValue(0);
       setFuelStation("");
@@ -70,10 +84,13 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
     try {
       const data = {
         vehicle_id: vehicleId,
+        date: date || new Date().toISOString().split("T")[0],
         km_digital: kmDigital,
         liters,
         fuel_type: fuelType,
         price_per_liter: pricePerLiter,
+        arla_liters: hasArla ? arlaLiters : undefined,
+        arla_price_per_liter: hasArla ? arlaPricePerLiter : undefined,
         has_discount: hasDiscount,
         discount_value: hasDiscount ? discountValue : undefined,
         value_brl: totalValue,
@@ -134,10 +151,17 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">KM Digital *</label>
-            <input type="number" value={kmDigital || ""} onChange={(e) => setKmDigital(parseInt(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">KM Digital *</label>
+              <input type="number" value={kmDigital || ""} onChange={(e) => setKmDigital(parseInt(e.target.value) || 0)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -152,6 +176,34 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                 step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
             </div>
           </div>
+
+          {/* Arla toggle */}
+          {fuelType.includes("diesel") && (
+            <>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={hasArla} onChange={(e) => setHasArla(e.target.checked)} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+                <span className="text-sm font-medium text-blue-900">Adicionou Arla 32?</span>
+              </div>
+
+              {hasArla && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Litros de Arla *</label>
+                    <input type="number" value={arlaLiters || ""} onChange={(e) => setArlaLiters(parseFloat(e.target.value) || 0)}
+                      step="0.01" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preço/Litro Arla (R$) *</label>
+                    <input type="number" value={arlaPricePerLiter || ""} onChange={(e) => setArlaPricePerLiter(parseFloat(e.target.value) || 0)}
+                      step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {/* Discount toggle */}
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">

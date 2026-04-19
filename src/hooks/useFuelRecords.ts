@@ -17,7 +17,7 @@ export function useFuelRecords() {
 
       const { data, error: err } = await supabase
         .from("fuel_records")
-        .select("id, tenant_id, vehicle_id, driver_id, km_digital, km_photo_url, liters, value_brl, fuel_station, fuel_type, price_per_liter, has_discount, discount_value, validations, created_at, updated_at")
+        .select("id, tenant_id, vehicle_id, driver_id, date, km_digital, km_photo_url, liters, value_brl, arla_liters, arla_price_per_liter, fuel_station, fuel_type, price_per_liter, has_discount, discount_value, validations, created_at, updated_at")
         .eq("tenant_id", tenant.id)
         .order("created_at", { ascending: false });
 
