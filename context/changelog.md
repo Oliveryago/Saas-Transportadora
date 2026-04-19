@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-04-19] — Feature: Cadastro de Motoristas
+### Adicionado
+- `context/intent/feature-motoristas.md`
+- `context/decisions/007-motoristas.md`
+- Escopo: Estruturação inicial do módulo de Motoristas (`/drivers`), incluindo serviços de OCR mockado, hooks de CRUD e esquema de banco de dados multi-tenant.
+
 ## [2026-04-18] — Feature: Fuel Updates
 ### Adicionado
 - `context/intent/feature-fuel-updates.md`

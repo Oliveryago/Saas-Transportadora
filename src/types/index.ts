@@ -284,3 +284,19 @@ export interface AccidentRecord {
   created_at: string;
   updated_at: string;
 }
+
+export interface Driver {
+  id: string;
+  tenant_id: string;
+  nome_completo: string;
+  data_nascimento?: string;
+  cpf: string;
+  numero_cnh?: string;
+  categoria_cnh?: string;
+  validade_cnh?: string;
+  endereco?: string;
+  cnh_url?: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}

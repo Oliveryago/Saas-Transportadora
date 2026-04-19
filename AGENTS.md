@@ -64,6 +64,16 @@ context/
 - **Decisões relacionadas:**
   - [006-fuel-updates.md](context/decisions/006-fuel-updates.md) - Arla Integration & Backdated Logging
 
+### Motoristas (`/drivers`)
+
+- **Objetivo:** Gestão centralizada de motoristas e automação via OCR de CNH.
+- **Arquivo:** `src/pages/Drivers.tsx`
+- **Hook:** `src/hooks/useDrivers.ts`
+- **Serviço:** `src/services/motorista/ocrService.ts`
+- **Decisões relacionadas:**
+  - [007-motoristas.md](context/decisions/007-motoristas.md)
+- **Status:** Estrutura base sendo implementada (Abril 2026)
+
 ### Global Scale Evolution (Planejado)
 
 - **Feature Context:** `context/intent/feature-global-scale-evolution.md`

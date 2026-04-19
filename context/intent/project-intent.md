@@ -39,6 +39,7 @@ Sistema SaaS multi-empresa para gestão operacional de transportadoras, permitin
 | Acidentes | `/accidents` | Registro de sinistros |
 | Configurações | `/settings` | Configurações da empresa |
 | SuperAdmin | `/superadmin` | Gestão global do sistema |
+| Motoristas | `/drivers` | Gestão de motoristas e OCR de CNH |
 
 ## Related
 
@@ -51,3 +52,5 @@ Sistema SaaS multi-empresa para gestão operacional de transportadoras, permitin
 - [Feature: Evolução para Escala Global](feature-global-scale-evolution.md)
 - [Decision: Evolução para Escala Global](../decisions/005-global-scale-evolution.md)
 - [Feature: Fuel Updates](feature-fuel-updates.md)
+- [Feature: Cadastro de Motoristas](feature-motoristas.md)
+- [Decision: Módulo de Motoristas](../decisions/007-motoristas.md)

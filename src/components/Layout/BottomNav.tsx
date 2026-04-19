@@ -18,7 +18,8 @@ import {
   Settings,
   Users,
   BarChart2,
-  Search
+  Search,
+  UserCircle
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { NotificationBell } from "../shared/NotificationBell";
@@ -47,6 +48,7 @@ export function BottomNav() {
     { to: "/insurance", icon: ShieldCheck, label: "Seguros" },
     { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
     { to: "/suppliers", icon: Users, label: "Fornecedores" },
+    { to: "/drivers", icon: UserCircle, label: "Motoristas" },
     { to: "/financial", icon: BarChart2, label: "Financeiro" },
     { to: "/reports", icon: BarChart2, label: "Relatórios" },
     { to: "/settings", icon: Settings, label: "Configurações" },

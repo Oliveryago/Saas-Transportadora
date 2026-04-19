@@ -14,6 +14,7 @@ const Fuel = lazy(() => import("./pages/Fuel").then(m => ({ default: m.Fuel })))
 const Maintenance = lazy(() => import("./pages/Maintenance").then(m => ({ default: m.Maintenance })));
 const OilChange = lazy(() => import("./pages/OilChange").then(m => ({ default: m.OilChange })));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin").then(m => ({ default: m.SuperAdmin })));
+const Drivers = lazy(() => import("./pages/Drivers").then(m => ({ default: m.Drivers })));
 const Suppliers = lazy(() => import("./pages/Suppliers").then(m => ({ default: m.Suppliers })));
 const Parking = lazy(() => import("./pages/Parking").then(m => ({ default: m.Parking })));
 const TireChangePage = lazy(() => import("./pages/TireChange").then(m => ({ default: m.TireChangePage })));
@@ -59,6 +60,7 @@ function App() {
           <Route path="/settings" element={<ProtectedRoute><LazyPage><Settings /></LazyPage></ProtectedRoute>} />
           <Route path="/financial" element={<ProtectedRoute><LazyPage><FinancialDashboard /></LazyPage></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><LazyPage><Reports /></LazyPage></ProtectedRoute>} />
+          <Route path="/drivers" element={<ProtectedRoute><LazyPage><Drivers /></LazyPage></ProtectedRoute>} />
           <Route path="/superadmin" element={<ProtectedRoute><LazyPage><SuperAdmin /></LazyPage></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
           </Routes>

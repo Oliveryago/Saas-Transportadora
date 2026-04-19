@@ -18,7 +18,8 @@ import {
     Building2,
     BarChart2,
     ArrowLeft,
-    Search
+    Search,
+    UserCircle
 } from "lucide-react";
 import { NotificationBell } from "../shared/NotificationBell";
 
@@ -42,6 +43,7 @@ export function Sidebar() {
         { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
         { to: "/settings", icon: Settings, label: "Configurações" },
         { to: "/suppliers", icon: Users, label: "Fornecedores" },
+        { to: "/drivers", icon: UserCircle, label: "Motoristas" },
         { to: "/reports", icon: BarChart2, label: "Relatórios" },
     ];
 
