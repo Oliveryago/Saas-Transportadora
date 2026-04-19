@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { generateVoucher } from "../services/documentGenerator";
 import FuelModal from "../components/fuel/FuelModal";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 interface TrechoData {
   recordId: string;
@@ -22,11 +23,13 @@ interface TrechoData {
   valorTotal: number;
   posto: string;
   isFirst: boolean;
+  isFull: boolean;
 }
 
 export function Fuel() {
   const { user, tenant, signOut } = useAuth();
-  const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords();
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords(selectedVehicleId);
   const { vehicles } = useVehicles();
   const navigate = useNavigate();
   const [fuelModalOpen, setFuelModalOpen] = useState(false);
@@ -48,10 +51,12 @@ export function Fuel() {
         "KM Registrado": trecho.kmFinal.toLocaleString("pt-BR")
       };
 
-      if (!trecho.isFirst) {
+      if (!trecho.isFirst && trecho.kmPorLitro !== -1) {
         details["KM Inicial"] = trecho.kmInicial.toLocaleString("pt-BR");
         details["Distância"] = `${trecho.distancia.toLocaleString("pt-BR")} km`;
         details["Consumo"] = `${trecho.kmPorLitro.toFixed(2)} km/l`;
+      } else if (trecho.kmPorLitro === -1) {
+        details["Consumo"] = "Parcial (Acumulado)";
       }
 
       await generateVoucher({
@@ -96,39 +101,45 @@ export function Fuel() {
         .filter((r) => r.vehicle_id === vehicleId)
         .sort((a, b) => a.km_digital - b.km_digital);
 
-      result[vehicleId] = vehicleRecords.map((record, index) => {
-        if (index === 0) {
-          return {
-            recordId: record.id,
-            vehicleId: record.vehicle_id,
-            date: record.date || record.created_at,
-            kmInicial: 0,
-            kmFinal: record.km_digital,
-            distancia: 0,
-            litros: record.liters,
-            kmPorLitro: 0,
-            valorTotal: Number(record.value_brl || 0),
-            posto: record.fuel_station || "-",
-            isFirst: true,
-          };
-        }
+      let lastFullRecord: FuelRecord | null = null;
+      let pendingLiters = 0;
 
-        const prev = vehicleRecords[index - 1];
-        const distancia = record.km_digital - prev.km_digital;
-        const kmPorLitro = distancia > 0 && record.liters > 0 ? distancia / record.liters : 0;
+      result[vehicleId] = vehicleRecords.map((record, index) => {
+        const isFirst = index === 0;
+        const prev = !isFirst ? vehicleRecords[index - 1] : null;
+        const distancia = prev ? record.km_digital - prev.km_digital : 0;
+        
+        let kmPorLitro = 0;
+        const isFull = record.is_full_tank !== false; // Default to true if undefined
+
+        if (isFull) {
+          if (lastFullRecord) {
+            const totalDistance = record.km_digital - lastFullRecord.km_digital;
+            const totalLiters = pendingLiters + record.liters;
+            kmPorLitro = totalLiters > 0 ? totalDistance / totalLiters : 0;
+          }
+          // Reset accumulators for next block
+          lastFullRecord = record;
+          pendingLiters = 0;
+        } else {
+          // It's a partial refill. Accumulate liters for next full refill.
+          pendingLiters += record.liters;
+          kmPorLitro = -1; // Use -1 as a flag for "Partial/Unknown"
+        }
 
         return {
           recordId: record.id,
           vehicleId: record.vehicle_id,
           date: record.date || record.created_at,
-          kmInicial: prev.km_digital,
+          kmInicial: prev ? prev.km_digital : 0,
           kmFinal: record.km_digital,
           distancia,
-          litros: record.liters,
+          liters: record.liters,
           kmPorLitro,
           valorTotal: Number(record.value_brl || 0),
           posto: record.fuel_station || "-",
-          isFirst: false,
+          isFirst,
+          isFull,
         };
       });
     });
@@ -175,17 +186,50 @@ export function Fuel() {
                 <h1 className="text-xl font-bold text-gray-900">Abastecimentos</h1>
               </div>
             </div>
+            
             <div className="hidden md:flex items-center gap-6">
-              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-              <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900">
-                <LogOut className="w-5 h-5" />
-              </button>
+              <VehicleFilter 
+                value={selectedVehicleId} 
+                onChange={setSelectedVehicleId} 
+              />
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900">
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Actions bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => { setEditingRecord(null); setFuelModalOpen(true); }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Abastecimento
+          </button>
+
+          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
+            <button
+              onClick={() => setViewMode("timeline")}
+              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              Timeline
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              Tabela
+            </button>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-5">
@@ -253,9 +297,6 @@ export function Fuel() {
             Novo Abastecimento
           </button>
 
-          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
-            <button
-              onClick={() => setViewMode("timeline")}
               className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
             >
               Timeline
@@ -383,7 +424,11 @@ export function Fuel() {
                                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                         Consumo do trecho anterior
                                       </span>
-                                      {badge && (
+                                      {trecho.kmPorLitro === -1 ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-gray-100 text-gray-700 border-gray-200">
+                                          Abastecimento Parcial
+                                        </span>
+                                      ) : badge && (
                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${badge.color}`}>
                                           {(() => { const Icon = badge.icon; return <Icon className="w-3 h-3" />; })()}
                                           {badge.label}
@@ -419,12 +464,12 @@ export function Fuel() {
                                         <p className="text-xs text-gray-400">Litros</p>
                                         <p className="font-semibold text-gray-800 text-sm">{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} L</p>
                                       </div>
-                                      <div className={`rounded-lg p-2 text-center ${trecho.kmPorLitro >= 3 ? "bg-emerald-50" : trecho.kmPorLitro >= 2 ? "bg-amber-50" : "bg-red-50"
+                                      <div className={`rounded-lg p-2 text-center ${trecho.kmPorLitro === -1 ? "bg-gray-50 italic" : trecho.kmPorLitro >= 3 ? "bg-emerald-50" : trecho.kmPorLitro >= 2 ? "bg-amber-50" : "bg-red-50"
                                         }`}>
                                         <p className="text-xs text-gray-400">Resultado</p>
-                                        <p className={`font-bold text-sm ${trecho.kmPorLitro >= 3 ? "text-emerald-700" : trecho.kmPorLitro >= 2 ? "text-amber-700" : "text-red-700"
+                                        <p className={`font-bold text-sm ${trecho.kmPorLitro === -1 ? "text-gray-500 font-medium" : trecho.kmPorLitro >= 3 ? "text-emerald-700" : trecho.kmPorLitro >= 2 ? "text-amber-700" : "text-red-700"
                                           }`}>
-                                          {trecho.kmPorLitro.toFixed(2)} km/l
+                                          {trecho.kmPorLitro === -1 ? "Pendente" : `${trecho.kmPorLitro.toFixed(2)} km/l`}
                                         </p>
                                       </div>
                                     </div>
@@ -436,6 +481,12 @@ export function Fuel() {
                                   <span>KM: {trecho.kmFinal.toLocaleString("pt-BR")}</span>
                                   <span>•</span>
                                   <span>{trecho.litros.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 3 })} litros</span>
+                                  {trecho.isFull === false && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-amber-500 font-medium uppercase tracking-tighter">Parcial</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -501,6 +552,10 @@ export function Fuel() {
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs border border-blue-100">
                               <Info className="w-3 h-3" />
                               Aguardando
+                            </span>
+                          ) : trecho.kmPorLitro === -1 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs border border-gray-200" title="Aguardando próximo tanque cheio para calcular">
+                              Parcial
                             </span>
                           ) : badge ? (
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.color}`}>

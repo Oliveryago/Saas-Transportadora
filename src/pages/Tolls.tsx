@@ -5,9 +5,11 @@ import { useVehicles } from "../hooks/useVehicles";
 import { useDrivers } from "../hooks/useDrivers";
 import TollModal from "../components/tolls/TollModal";
 import type { TollRecord } from "../types";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 export function Tolls() {
-    const { records, loading, deleteRecord } = useTollRecords();
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+    const { records, loading, deleteRecord } = useTollRecords(selectedVehicleId);
     const { vehicles } = useVehicles();
     const { drivers } = useDrivers();
     const [modalOpen, setModalOpen] = useState(false);
@@ -22,7 +24,10 @@ export function Tolls() {
             <header className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div><h1 className="text-2xl font-bold text-gray-900">Pedágios</h1><p className="text-gray-500 text-sm">{records.length} registros</p></div>
-                    <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><Plus className="w-4 h-4" /> Novo Pedágio</button>
+                    <div className="flex items-center gap-4">
+                        <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
+                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Pedágio</button>
+                    </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">

@@ -7,12 +7,14 @@ import { useAuth } from "../contexts/AuthContext";
 import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell, Settings } from "lucide-react";
 import OilChangeModal from "../components/oilchange/OilChangeModal";
 import { OIL_TYPE_LABELS } from "../types";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 export function OilChange() {
-    const { user, signOut } = useAuth();
-    const { alerts, deleteAlert, getPendingAlerts } = useOilChangeAlerts();
+    const { user, signOut, tenant } = useAuth();
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+    const { alerts, deleteAlert, getPendingAlerts } = useOilChangeAlerts(selectedVehicleId);
     const { vehicles } = useVehicles();
-    const { getLatestKmByVehicle } = useFuelRecords();
+    const { getLatestKmByVehicle } = useFuelRecords(selectedVehicleId);
     const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
     const [editingAlert, setEditingAlert] = useState(null);
@@ -78,9 +80,17 @@ export function OilChange() {
                                 <h1 className="text-xl font-bold text-gray-900">Troca de Óleo</h1>
                             </div>
                         </div>
+
                         <div className="hidden md:flex items-center gap-6">
-                            <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                            <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900">
+                            <VehicleFilter 
+                                value={selectedVehicleId} 
+                                onChange={setSelectedVehicleId} 
+                            />
+                            <div className="text-right">
+                                <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                                <p className="text-xs text-gray-500">{tenant?.name}</p>
+                            </div>
+                            <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900 transition-colors">
                                 <LogOut className="w-5 h-5" />
                             </button>
                         </div>

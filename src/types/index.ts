@@ -129,6 +129,7 @@ export interface FuelRecord {
     verified: boolean;
     issues: string[];
   };
+  is_full_tank?: boolean;
   created_at: string;
   updated_at: string;
 }

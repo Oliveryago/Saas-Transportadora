@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { FuelRecord } from "../types";
 
-export function useFuelRecords() {
+export function useFuelRecords(vehicleId?: string) {
   const { tenant, user } = useAuth();
   const [records, setRecords] = useState<FuelRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,11 +15,15 @@ export function useFuelRecords() {
       setLoading(true);
       setError(null);
 
-      const { data, error: err } = await supabase
-        .from("fuel_records")
-        .select("id, tenant_id, vehicle_id, driver_id, date, km_digital, km_photo_url, liters, value_brl, arla_liters, arla_price_per_liter, fuel_station, fuel_type, price_per_liter, has_discount, discount_value, validations, created_at, updated_at")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false });
+      let query = supabase
+        .select("id, tenant_id, vehicle_id, driver_id, date, km_digital, km_photo_url, liters, value_brl, arla_liters, arla_price_per_liter, fuel_station, fuel_type, price_per_liter, has_discount, discount_value, validations, is_full_tank, created_at, updated_at")
+        .eq("tenant_id", tenant.id);
+
+      if (vehicleId) {
+        query = query.eq("vehicle_id", vehicleId);
+      }
+
+      const { data, error: err } = await query.order("created_at", { ascending: false });
 
       if (err) throw err;
       setRecords(data || []);
@@ -29,7 +33,7 @@ export function useFuelRecords() {
     } finally {
       setLoading(false);
     }
-  }, [tenant, user]);
+  }, [tenant, user, vehicleId]);
 
   useEffect(() => {
     fetchRecords();

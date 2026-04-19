@@ -13,13 +13,15 @@ import {
 } from "recharts";
 import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
 import { Skeleton } from "../components/shared/SkeletonLoader";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 export function Dashboard() {
   const { user, tenant, signOut, isSuperAdmin, isImpersonating, impersonatedTenant, stopImpersonation } = useAuth();
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const {
     loading, metrics, costByCategory, vehicleConsumption,
     fleetAvgConsumption, dailyFuel, alertItems, recentActivity
-  } = useDashboardMetrics();
+  } = useDashboardMetrics(selectedVehicleId);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -166,6 +168,10 @@ export function Dashboard() {
             </button>
 
             <div className="hidden md:flex items-center gap-6">
+              <VehicleFilter 
+                value={selectedVehicleId} 
+                onChange={setSelectedVehicleId} 
+              />
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                 <p className="text-xs text-gray-500">{tenant?.name}</p>

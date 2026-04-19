@@ -4,9 +4,11 @@ import { useTireChanges } from "../hooks/useTireChanges";
 import { useVehicles } from "../hooks/useVehicles";
 import TireChangeModal from "../components/tirechange/TireChangeModal";
 import type { TireChange } from "../types";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 export function TireChangePage() {
-    const { records, loading, deleteRecord } = useTireChanges();
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+    const { records, loading, deleteRecord } = useTireChanges(selectedVehicleId);
     const { vehicles } = useVehicles();
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<TireChange | null>(null);
@@ -20,7 +22,10 @@ export function TireChangePage() {
             <header className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div><h1 className="text-2xl font-bold text-gray-900">Troca de Pneus</h1><p className="text-gray-500 text-sm">{records.length} registros</p></div>
-                    <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><Plus className="w-4 h-4" /> Nova Troca</button>
+                    <div className="flex items-center gap-4">
+                        <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
+                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Nova Troca</button>
+                    </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">

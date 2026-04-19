@@ -28,6 +28,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   const [fuelStation, setFuelStation] = useState("");
   const [date, setDate] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isFullTank, setIsFullTank] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setHasDiscount(editingRecord.has_discount || false);
       setDiscountValue(editingRecord.discount_value || 0);
       setFuelStation(editingRecord.fuel_station || "");
+      setIsFullTank(editingRecord.is_full_tank ?? true);
     } else {
       setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
       setDate(new Date().toISOString().split("T")[0]);
@@ -68,6 +70,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setHasDiscount(false);
       setDiscountValue(0);
       setFuelStation("");
+      setIsFullTank(true);
     }
     setError(null);
   }, [editingRecord, vehicles, open]);
@@ -93,15 +96,20 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
         arla_price_per_liter: hasArla ? arlaPricePerLiter : undefined,
         has_discount: hasDiscount,
         discount_value: hasDiscount ? discountValue : undefined,
-        value_brl: totalValue,
         fuel_station: fuelStation,
+        is_full_tank: isFullTank,
+      };
+
+      const dataToSave = {
+        ...data,
+        value_brl: totalValue,
       };
 
       if (editingRecord) {
-        await updateRecord(editingRecord.id, data);
+        await updateRecord(editingRecord.id, dataToSave);
       } else {
         await addRecord({
-          ...data,
+          ...dataToSave,
           km_photo_url: undefined,
           validations: { verified: false, issues: [] },
           driver_id: "",
@@ -174,6 +182,17 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               <label className="block text-sm font-medium text-gray-700 mb-1">Preço/Litro (R$) *</label>
               <input type="number" value={pricePerLiter || ""} onChange={(e) => setPricePerLiter(parseFloat(e.target.value) || 0)}
                 step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={isFullTank} onChange={(e) => setIsFullTank(e.target.checked)} className="sr-only peer" />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+            </label>
+            <div>
+              <span className="text-sm font-semibold text-amber-900 block">Tanque Cheio?</span>
+              <p className="text-xs text-amber-700">Desmarque se for apenas um abastecimento parcial</p>
             </div>
           </div>
 

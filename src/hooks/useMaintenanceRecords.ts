@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { MaintenanceRecord } from "../types";
 
-export function useMaintenanceRecords() {
+export function useMaintenanceRecords(vehicleId?: string) {
     const { tenant } = useAuth();
     const [records, setRecords] = useState<MaintenanceRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -12,17 +12,22 @@ export function useMaintenanceRecords() {
     useEffect(() => {
         if (!tenant) return;
         fetchRecords();
-    }, [tenant]);
+    }, [tenant, vehicleId]);
 
     async function fetchRecords() {
         try {
             setLoading(true);
             setError(null);
-            const { data, error: err } = await supabase
+            let query = supabase
                 .from("maintenance_records")
                 .select("*")
-                .eq("tenant_id", tenant!.id)
-                .order("created_at", { ascending: false });
+                .eq("tenant_id", tenant!.id);
+
+            if (vehicleId) {
+                query = query.eq("vehicle_id", vehicleId);
+            }
+
+            const { data, error: err } = await query.order("created_at", { ascending: false });
             if (err) throw err;
             setRecords(data || []);
         } catch (err) {

@@ -5,6 +5,7 @@ import {
     Fuel, Wrench, Disc, SprayCan, Ticket,
     Car, ShieldCheck, DollarSign, TrendingUp, Calendar
 } from "lucide-react";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 interface CategoryTotal {
     label: string;
@@ -28,9 +29,11 @@ export function FinancialDashboard() {
     const [grandTotal, setGrandTotal] = useState(0);
     const [recentEntries, setRecentEntries] = useState<any[]>([]);
 
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+
     useEffect(() => {
         if (tenant?.id) fetchFinancialData();
-    }, [tenant?.id, period]);
+    }, [tenant?.id, period, selectedVehicleId]);
 
     async function fetchFinancialData() {
         if (!tenant?.id) return;
@@ -48,6 +51,7 @@ export function FinancialDashboard() {
         function applyFilter(query: any) {
             let q = query.eq("tenant_id", tenant!.id);
             if (fromDate) q = q.gte("created_at", fromDate);
+            if (selectedVehicleId) q = q.eq("vehicle_id", selectedVehicleId);
             return q;
         }
 
@@ -138,8 +142,13 @@ export function FinancialDashboard() {
                         <h1 className="text-2xl font-bold text-gray-900">Dashboard Financeiro</h1>
                         <p className="text-sm text-gray-500 mt-0.5">{tenant?.name} — {periodLabel}</p>
                     </div>
-                    {/* Period filter */}
-                    <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                    {/* Period & Vehicle filters */}
+                    <div className="flex items-center gap-4">
+                        <VehicleFilter 
+                            value={selectedVehicleId} 
+                            onChange={setSelectedVehicleId} 
+                        />
+                        <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
                         {(["month", "year", "all"] as const).map((p) => (
                             <button
                                 key={p}

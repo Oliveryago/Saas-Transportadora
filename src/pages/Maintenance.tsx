@@ -6,10 +6,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } from "lucide-react";
 import { generateMaintenanceOS } from "../services/documentGenerator";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
+import VehicleFilter from "../components/shared/VehicleFilter";
 
 export function Maintenance() {
-    const { user, tenant, signOut } = useAuth();
-    const { records, deleteRecord, refetch } = useMaintenanceRecords();
+    const { user, signOut, tenant } = useAuth();
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+    const { records, deleteRecord, refetch } = useMaintenanceRecords(selectedVehicleId);
     const { vehicles } = useVehicles();
     const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
@@ -85,8 +87,15 @@ export function Maintenance() {
                             </div>
                         </div>
                         <div className="hidden md:flex items-center gap-6">
-                            <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                            <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900">
+                            <VehicleFilter 
+                                value={selectedVehicleId} 
+                                onChange={setSelectedVehicleId} 
+                            />
+                            <div className="text-right">
+                                <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                                <p className="text-xs text-gray-500">{tenant?.name}</p>
+                            </div>
+                            <button onClick={() => signOut()} className="text-gray-700 hover:text-gray-900 transition-colors">
                                 <LogOut className="w-5 h-5" />
                             </button>
                         </div>

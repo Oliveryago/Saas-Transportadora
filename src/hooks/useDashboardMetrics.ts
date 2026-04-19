@@ -59,7 +59,7 @@ interface AlertItem {
   path: string;
 }
 
-export function useDashboardMetrics() {
+export function useDashboardMetrics(vehicleId?: string) {
   const { tenant } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +85,35 @@ export function useDashboardMetrics() {
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString();
 
+      let vehiclesQuery = supabase.from("vehicles").select("id, license_plate, model, current_km, active").eq("tenant_id", tenant.id);
+      if (vehicleId) vehiclesQuery = vehiclesQuery.eq("id", vehicleId);
+
+      let fuelQuery = supabase.from("fuel_records").select("id, vehicle_id, liters, value_brl, km_digital, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) fuelQuery = fuelQuery.eq("vehicle_id", vehicleId);
+      fuelQuery = fuelQuery.order("created_at", { ascending: false });
+
+      let maintenanceQuery = supabase.from("maintenance_records").select("id, vehicle_id, value_brl, type, description, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) maintenanceQuery = maintenanceQuery.eq("vehicle_id", vehicleId);
+      maintenanceQuery = maintenanceQuery.order("created_at", { ascending: false });
+
+      let oilQuery = supabase.from("oil_change_alerts").select("id, vehicle_id, oil_type, alert_type, km_interval, days_interval, last_change_km, last_change_date, alert_status").eq("tenant_id", tenant.id).eq("alert_status", "active");
+      if (vehicleId) oilQuery = oilQuery.eq("vehicle_id", vehicleId);
+
+      let tireQuery = supabase.from("tire_changes").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) tireQuery = tireQuery.eq("vehicle_id", vehicleId);
+
+      let washQuery = supabase.from("washing_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) washQuery = washQuery.eq("vehicle_id", vehicleId);
+
+      let tollQuery = supabase.from("toll_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) tollQuery = tollQuery.eq("vehicle_id", vehicleId);
+
+      let parkQuery = supabase.from("parking_records").select("id, vehicle_id, value_brl, entry_date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      if (vehicleId) parkQuery = parkQuery.eq("vehicle_id", vehicleId);
+
+      let insuranceQuery = supabase.from("insurance_records").select("id, vehicle_id, expiration_date, insurer, created_at").eq("tenant_id", tenant.id);
+      if (vehicleId) insuranceQuery = insuranceQuery.eq("vehicle_id", vehicleId);
+
       const [
         vehiclesRes,
         driversRes,
@@ -97,16 +126,16 @@ export function useDashboardMetrics() {
         parkRes,
         insuranceRes,
       ] = await Promise.all([
-        supabase.from("vehicles").select("id, license_plate, model, current_km, active").eq("tenant_id", tenant.id),
+        vehiclesQuery,
         supabase.from("users").select("id, name, role").eq("tenant_id", tenant.id).eq("role", "driver"),
-        supabase.from("fuel_records").select("id, vehicle_id, liters, value_brl, km_digital, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo).order("created_at", { ascending: false }),
-        supabase.from("maintenance_records").select("id, vehicle_id, value_brl, type, description, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo).order("created_at", { ascending: false }),
-        supabase.from("oil_change_alerts").select("id, vehicle_id, oil_type, alert_type, km_interval, days_interval, last_change_km, last_change_date, alert_status").eq("tenant_id", tenant.id).eq("alert_status", "active"),
-        supabase.from("tire_changes").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo),
-        supabase.from("washing_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo),
-        supabase.from("toll_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo),
-        supabase.from("parking_records").select("id, vehicle_id, value_brl, entry_date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo),
-        supabase.from("insurance_records").select("id, vehicle_id, expiration_date, insurer, created_at").eq("tenant_id", tenant.id),
+        fuelQuery,
+        maintenanceQuery,
+        oilQuery,
+        tireQuery,
+        washQuery,
+        tollQuery,
+        parkQuery,
+        insuranceQuery,
       ]);
 
       setVehicles(vehiclesRes.data || []);
@@ -124,7 +153,7 @@ export function useDashboardMetrics() {
     } finally {
       setLoading(false);
     }
-  }, [tenant]);
+  }, [tenant, vehicleId]);
 
   useEffect(() => {
     fetchAll();
@@ -142,25 +171,34 @@ export function useDashboardMetrics() {
     const monthMaintenance = maintenanceRecords.filter(r => isThisMonth(r.created_at));
 
     // Calcular consumo médio da frota
-    let totalLiters = 0;
-    let totalKm = 0;
-    const vehicleKms = new Map<string, { min: number; max: number }>();
+    const vehicleStats = new Map<string, { minKm: number; maxKm: number; litersToExclude: number; totalLiters: number }>();
     
     fuelRecords.forEach(r => {
       if (isThisMonth(r.created_at)) {
-        totalLiters += r.liters || 0;
-        const existing = vehicleKms.get(r.vehicle_id);
-        if (existing) {
-          existing.min = Math.min(existing.min, r.km_digital);
-          existing.max = Math.max(existing.max, r.km_digital);
-        } else {
-          vehicleKms.set(r.vehicle_id, { min: r.km_digital, max: r.km_digital });
+        const stats = vehicleStats.get(r.vehicle_id) || { minKm: Infinity, maxKm: -Infinity, litersToExclude: 0, totalLiters: 0 };
+        
+        stats.totalLiters += r.liters || 0;
+        
+        if (r.km_digital < stats.minKm) {
+          stats.minKm = r.km_digital;
+          stats.litersToExclude = r.liters || 0;
         }
+        if (r.km_digital > stats.maxKm) {
+          stats.maxKm = r.km_digital;
+        }
+        
+        vehicleStats.set(r.vehicle_id, stats);
       }
     });
 
-    vehicleKms.forEach(({ min, max }) => {
-      totalKm += max - min;
+    let consumptionLiters = 0;
+    vehicleStats.forEach((stats) => {
+      if (stats.maxKm > stats.minKm && stats.minKm !== Infinity) {
+        totalKm += stats.maxKm - stats.minKm;
+        // The liters from the very first refill in the period are usually for the PREVIOUS period's distance.
+        // To get a meaningful average, we divide distance by the liters that "filled back" that distance.
+        consumptionLiters += (stats.totalLiters - stats.litersToExclude);
+      }
     });
 
     return {
@@ -171,7 +209,7 @@ export function useDashboardMetrics() {
       fuelTotalMonth: monthFuel.reduce((sum, r) => sum + (r.value_brl || 0), 0),
       maintenanceCostMonth: monthMaintenance.reduce((sum, r) => sum + (r.value_brl || 0), 0),
       totalKmMonth: totalKm,
-      avgConsumption: totalLiters > 0 ? totalKm / totalLiters : 0,
+      avgConsumption: consumptionLiters > 0 ? totalKm / consumptionLiters : 0,
       pendingAlertsCount: oilAlerts.length,
     };
   }, [vehicles, drivers, fuelRecords, maintenanceRecords, oilAlerts]);

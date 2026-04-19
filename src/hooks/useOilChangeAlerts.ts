@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { OilChangeAlert } from "../types";
 
-export function useOilChangeAlerts() {
+export function useOilChangeAlerts(vehicleId?: string) {
     const { tenant } = useAuth();
     const [alerts, setAlerts] = useState<OilChangeAlert[]>([]);
     const [loading, setLoading] = useState(true);
@@ -12,17 +12,22 @@ export function useOilChangeAlerts() {
     useEffect(() => {
         if (!tenant) return;
         fetchAlerts();
-    }, [tenant]);
+    }, [tenant, vehicleId]);
 
     async function fetchAlerts() {
         try {
             setLoading(true);
             setError(null);
-            const { data, error: err } = await supabase
+            let query = supabase
                 .from("oil_change_alerts")
                 .select("*")
-                .eq("tenant_id", tenant!.id)
-                .order("created_at", { ascending: false });
+                .eq("tenant_id", tenant!.id);
+
+            if (vehicleId) {
+                query = query.eq("vehicle_id", vehicleId);
+            }
+
+            const { data, error: err } = await query.order("created_at", { ascending: false });
             if (err) throw err;
             setAlerts(data || []);
         } catch (err) {
