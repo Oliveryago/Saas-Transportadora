@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useOilChangeAlerts } from "../../hooks/useOilChangeAlerts";
 import { useVehicles } from "../../hooks/useVehicles";
-import type { OilChangeAlert } from "../../types";
+import type { OilChangeAlert, OilType } from "../../types";
+import { OIL_TYPE_LABELS } from "../../types";
 
 interface OilChangeModalProps {
     open: boolean;
@@ -15,6 +16,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
     const { vehicles } = useVehicles();
 
     const [vehicleId, setVehicleId] = useState("");
+    const [oilType, setOilType] = useState<OilType>("motor");
     const [alertType, setAlertType] = useState<"km" | "date" | "both">("km");
     const [kmInterval, setKmInterval] = useState(15000);
     const [daysInterval, setDaysInterval] = useState(180);
@@ -26,6 +28,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
     useEffect(() => {
         if (editingAlert) {
             setVehicleId(editingAlert.vehicle_id);
+            setOilType(editingAlert.oil_type || "motor");
             setAlertType(editingAlert.alert_type);
             setKmInterval(editingAlert.km_interval || 15000);
             setDaysInterval(editingAlert.days_interval || 180);
@@ -33,6 +36,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
             setLastChangeDate(editingAlert.last_change_date || new Date().toISOString().split("T")[0]);
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
+            setOilType("motor");
             setAlertType("km");
             setKmInterval(15000);
             setDaysInterval(180);
@@ -51,6 +55,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
         try {
             const data = {
                 vehicle_id: vehicleId,
+                oil_type: oilType,
                 alert_type: alertType,
                 km_interval: (alertType === "km" || alertType === "both") ? kmInterval : undefined,
                 days_interval: (alertType === "date" || alertType === "both") ? daysInterval : undefined,
@@ -98,6 +103,19 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
                             <option value="">Selecione um veículo</option>
                             {vehicles.map((v) => (
                                 <option key={v.id} value={v.id}>{v.license_plate} - {v.model}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Peça/Local da Troca</label>
+                        <select
+                            value={oilType}
+                            onChange={(e) => setOilType(e.target.value as OilType)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {Object.entries(OIL_TYPE_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
                             ))}
                         </select>
                     </div>

@@ -4,8 +4,9 @@ import { useOilChangeAlerts } from "../hooks/useOilChangeAlerts";
 import { useVehicles } from "../hooks/useVehicles";
 import { useFuelRecords } from "../hooks/useFuelRecords";
 import { useAuth } from "../contexts/AuthContext";
-import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell } from "lucide-react";
+import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell, Settings } from "lucide-react";
 import OilChangeModal from "../components/oilchange/OilChangeModal";
+import { OIL_TYPE_LABELS } from "../types";
 
 export function OilChange() {
     const { user, signOut } = useAuth();
@@ -148,8 +149,16 @@ export function OilChange() {
                                     <div className="flex items-center gap-3">
                                         <Droplets className="w-6 h-6 text-amber-500" />
                                         <div>
-                                            <h3 className="text-lg font-bold text-gray-900">{getVehicleName(alert.vehicle_id)}</h3>
-                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-gray-900">{getVehicleName(alert.vehicle_id)}</h3>
+                                                {alert.oil_type && (
+                                                    <span className="flex items-center gap-1 text-xs font-medium text-gray-500 border border-gray-200 bg-gray-50 px-2 py-0.5 rounded">
+                                                        <Settings className="w-3 h-3" />
+                                                        {OIL_TYPE_LABELS[alert.oil_type as keyof typeof OIL_TYPE_LABELS]}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
                                                 {status.label}
                                             </span>
                                         </div>
