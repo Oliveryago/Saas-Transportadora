@@ -38,13 +38,37 @@ export function useOilChangeAlerts(vehicleId?: string) {
     }
 
     async function addAlert(alert: Omit<OilChangeAlert, "id" | "created_at" | "updated_at">) {
+        if (alert.vehicle_id && alert.oil_type) {
+            const { error: updateErr } = await supabase
+                .from("oil_change_alerts")
+                .update({ alert_status: "inactive" })
+                .eq("tenant_id", tenant!.id)
+                .eq("vehicle_id", alert.vehicle_id)
+                .eq("oil_type", alert.oil_type)
+                .eq("alert_status", "active");
+
+            if (updateErr) {
+                console.error("Erro ao desativar alertas antigos:", updateErr);
+            }
+        }
+
         const { data, error: err } = await supabase
             .from("oil_change_alerts")
             .insert([{ ...alert, tenant_id: tenant!.id }])
             .select();
         if (err) throw err;
         const newItem = data?.[0];
-        if (newItem) setAlerts([newItem, ...alerts]);
+        
+        if (newItem) {
+            setAlerts((prevAlerts) => {
+                const updatedAlerts = prevAlerts.map(a => 
+                    (a.vehicle_id === alert.vehicle_id && a.oil_type === alert.oil_type && a.alert_status === "active")
+                        ? { ...a, alert_status: "inactive" as const }
+                        : a
+                );
+                return [newItem, ...updatedAlerts];
+            });
+        }
         return newItem;
     }
 
