@@ -27,7 +27,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
 
     useEffect(() => {
         if (editingRecord) {
-            setVehicleId(editingRecord.vehicle_id); setDriverId(editingRecord.driver_id || "");
+            setVehicleId(editingRecord.vehicle_id); setDriverId((editingRecord as any).driver_ref_id || "");
             setWashPlace(editingRecord.wash_place || "");
             setDate(editingRecord.date); setNotes(editingRecord.notes || "");
             
@@ -76,7 +76,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
 
             const data = { 
                 vehicle_id: vehicleId, 
-                driver_id: driverId || undefined, 
+                driver_ref_id: driverId || undefined, 
                 wash_place: washPlace || undefined, 
                 vehicle_type: primaryType, 
                 date, 
