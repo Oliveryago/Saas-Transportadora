@@ -128,7 +128,7 @@ export function useDashboardMetrics(vehicleId?: string) {
         insuranceRes,
       ] = await Promise.all([
         vehiclesQuery,
-        supabase.from("users").select("id, name, role").eq("tenant_id", tenant.id).eq("role", "driver"),
+        supabase.from("drivers").select("id, nome_completo, active").eq("tenant_id", tenant.id).eq("active", true),
         fuelQuery,
         maintenanceQuery,
         oilQuery,
