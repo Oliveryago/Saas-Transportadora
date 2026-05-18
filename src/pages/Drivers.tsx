@@ -2,21 +2,34 @@ import React, { useState } from "react";
 import { UserPlus, Search, Filter, Mail, Phone, MapPin, User, ChevronRight, FileText } from "lucide-react";
 import { useDrivers } from "../hooks/useDrivers";
 import { MotoristaForm } from "../components/motorista/MotoristaForm";
+import type { Driver } from "../types";
 
 export function Drivers() {
-  const { drivers, loading, addDriver } = useDrivers();
+  const { drivers, loading, addDriver, updateDriver } = useDrivers();
   const [showForm, setShowForm] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleAddMotorista = async (data: any) => {
     try {
-      await addDriver(data);
+      if (editingDriver) {
+        await updateDriver(editingDriver.id, data);
+        alert("Motorista atualizado com sucesso!");
+      } else {
+        await addDriver(data);
+        alert("Motorista cadastrado com sucesso!");
+      }
       setShowForm(false);
-      alert("Motorista cadastrado com sucesso!");
+      setEditingDriver(null);
     } catch (error) {
       console.error("Falha ao salvar:", error);
       alert("Erro ao salvar motorista.");
     }
+  };
+
+  const handleEdit = (driver: Driver) => {
+    setEditingDriver(driver);
+    setShowForm(true);
   };
 
   const filteredDrivers = drivers.filter(d => 
@@ -32,7 +45,14 @@ export function Drivers() {
           <p className="text-gray-500">Controle de motoristas e documentosda frota</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setEditingDriver(null);
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-md transition-all font-semibold"
         >
           {showForm ? "Voltar para Lista" : (
@@ -46,7 +66,7 @@ export function Drivers() {
 
       {showForm ? (
         <div className="max-w-4xl mx-auto">
-          <MotoristaForm onSubmit={handleAddMotorista} />
+          <MotoristaForm onSubmit={handleAddMotorista} initialData={editingDriver || undefined} />
         </div>
       ) : (
         <div className="space-y-4">
@@ -131,8 +151,11 @@ export function Drivers() {
                     </div>
                   </div>
                   
-                  <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between group-hover:bg-indigo-50 transition-colors">
-                    <span className="text-xs font-bold text-gray-400 uppercase group-hover:text-indigo-400">Ver Detalhes</span>
+                  <div 
+                    className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between group-hover:bg-indigo-50 transition-colors cursor-pointer"
+                    onClick={() => handleEdit(driver)}
+                  >
+                    <span className="text-xs font-bold text-gray-400 uppercase group-hover:text-indigo-400">Editar Motorista</span>
                     <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
                   </div>
                 </div>
