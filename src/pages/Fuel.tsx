@@ -5,9 +5,11 @@ import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Plus, LogOut, ArrowLeft, Trash2, Edit2, Gauge, Info,
-  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2,
+  Download
 } from "lucide-react";
 import { generateVoucher } from "../services/documentGenerator";
+import { generateFuelReportPDF, generateFuelReportExcel } from "../services/fuelReportGenerator";
 import FuelModal from "../components/fuel/FuelModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { FuelRecord } from "../types";
@@ -47,6 +49,7 @@ export function Fuel() {
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
   const [generatingVoucher, setGeneratingVoucher] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null); // 'all' | vehicleId
 
   async function handleGenerateVoucher(trecho: TrechoData) {
     setGeneratingVoucher(trecho.recordId);
@@ -93,6 +96,26 @@ export function Fuel() {
       setFuelModalOpen(true);
     }
   };
+
+  async function handleGenerateReport(format: "pdf" | "excel", vehicleId?: string) {
+    const key = vehicleId || "all";
+    setGeneratingReport(key);
+    try {
+      const trechos = vehicleId
+        ? (trechosPerVehicle[vehicleId] || [])
+        : Object.values(trechosPerVehicle).flat();
+      if (format === "pdf") {
+        await generateFuelReportPDF(trechos, vehicles, tenant?.name, vehicleId);
+      } else {
+        await generateFuelReportExcel(trechos, vehicles, tenant?.name, vehicleId);
+      }
+    } catch (e) {
+      console.error("Erro ao gerar relatório:", e);
+      alert("Erro ao gerar relatório.");
+    } finally {
+      setGeneratingReport(null);
+    }
+  }
 
   const getVehicle = (vehicleId: string) => vehicles.find((v) => v.id === vehicleId);
   const getVehicleName = (vehicleId: string) => {
@@ -235,19 +258,42 @@ export function Fuel() {
             Novo Abastecimento
           </button>
 
-          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
-            <button
-              onClick={() => setViewMode("timeline")}
-              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
-            >
-              Timeline
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
-            >
-              Tabela
-            </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
+              <button
+                onClick={() => setViewMode("timeline")}
+                className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`px-4 py-2 text-sm font-medium transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                Tabela
+              </button>
+            </div>
+
+            {/* Relatório Geral */}
+            <div className="flex items-center gap-2">
+              <div className="relative group">
+                <button
+                  disabled={!!generatingReport || records.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium shadow-sm text-sm disabled:opacity-50 transition"
+                >
+                  {generatingReport === "all" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Relatório Geral
+                </button>
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-20 min-w-[160px] hidden group-hover:block">
+                  <button onClick={() => handleGenerateReport("pdf")} className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <FileText className="w-4 h-4 text-red-500" /> PDF
+                  </button>
+                  <button onClick={() => handleGenerateReport("excel")} className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <FileText className="w-4 h-4 text-green-600" /> Excel
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -308,31 +354,6 @@ export function Fuel() {
           </div>
         </div>
 
-        {/* Actions bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <button
-            onClick={() => { setEditingRecord(null); setFuelModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Abastecimento
-          </button>
-
-          <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
-            <button
-              onClick={() => setViewMode("timeline")}
-              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "timeline" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
-            >
-              Timeline
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`px-4 py-2 text-sm font-medium transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
-            >
-              Tabela
-            </button>
-          </div>
-        </div>
 
         {records.length === 0 ? (
           <div className="bg-white rounded-lg shadow text-center py-16">
@@ -380,6 +401,25 @@ export function Fuel() {
                         ) : (
                           <p className="text-sm text-gray-400">Aguardando dados</p>
                         )}
+                      </div>
+                      {/* Individual vehicle report dropdown */}
+                      <div className="relative group" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          disabled={!!generatingReport}
+                          className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 font-medium transition disabled:opacity-50"
+                          title="Relatório deste veículo"
+                        >
+                          {generatingReport === vehicleId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                          Relatório
+                        </button>
+                        <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-20 min-w-[140px] hidden group-hover:block">
+                          <button onClick={() => handleGenerateReport("pdf", vehicleId)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <FileText className="w-4 h-4 text-red-500" /> PDF
+                          </button>
+                          <button onClick={() => handleGenerateReport("excel", vehicleId)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <FileText className="w-4 h-4 text-green-600" /> Excel
+                          </button>
+                        </div>
                       </div>
                       {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                     </div>
