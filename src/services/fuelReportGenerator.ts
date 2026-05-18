@@ -61,16 +61,13 @@ function buildSummary(trechos: TrechoData[]) {
 
 /**
  * Gera relatório PDF de combustível
- * @param trechos - lista de trechos (filtrada por veículo se individual)
- * @param vehicles - todos os veículos
- * @param tenantName - nome da empresa
- * @param vehicleId - se definido, relatório é individual
  */
 export async function generateFuelReportPDF(
   trechos: TrechoData[],
   vehicles: VehicleInfo[],
   tenantName?: string,
-  vehicleId?: string
+  vehicleId?: string,
+  selectedMonth?: string
 ): Promise<void> {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
@@ -85,6 +82,16 @@ export async function generateFuelReportPDF(
   };
 
   const vehicle = vehicleId ? vehicles.find((v) => v.id === vehicleId) : null;
+
+  function getPeriodLabel(month?: string) {
+    if (!month || month === "all") return "Todos os períodos";
+    const [year, m] = month.split("-");
+    const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  const periodLabel = getPeriodLabel(selectedMonth);
+
   const title = vehicle
     ? `RELATÓRIO DE COMBUSTÍVEL — ${vehicle.license_plate}`
     : "RELATÓRIO DE COMBUSTÍVEL — FROTA COMPLETA";
@@ -96,17 +103,17 @@ export async function generateFuelReportPDF(
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(title, pageWidth / 2, 12, { align: "center" });
+  doc.text(title, pageWidth / 2, 10, { align: "center" });
 
   if (tenantName) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(tenantName, pageWidth / 2, 20, { align: "center" });
+    doc.text(tenantName, pageWidth / 2, 18, { align: "center" });
   }
 
   doc.setFontSize(8);
   doc.setTextColor(200, 255, 200);
-  doc.text(`Gerado em: ${now}`, pageWidth / 2, 26, { align: "center" });
+  doc.text(`Período: ${periodLabel}   |   Gerado em: ${now}`, pageWidth / 2, 26, { align: "center" });
 
   // ── Summary Cards ────────────────────────────────────────────────────────
   const summary = buildSummary(trechos);
@@ -175,8 +182,8 @@ export async function generateFuelReportPDF(
   });
 
   const fileName = vehicle
-    ? `Relatorio_Combustivel_${vehicle.license_plate}_${new Date().toISOString().slice(0, 10)}.pdf`
-    : `Relatorio_Combustivel_Frota_${new Date().toISOString().slice(0, 10)}.pdf`;
+    ? `Relatorio_Combustivel_${vehicle.license_plate}${selectedMonth && selectedMonth !== "all" ? "_" + selectedMonth : ""}_${new Date().toISOString().slice(0, 10)}.pdf`
+    : `Relatorio_Combustivel_Frota${selectedMonth && selectedMonth !== "all" ? "_" + selectedMonth : ""}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
   doc.save(fileName);
 }
@@ -188,7 +195,8 @@ export async function generateFuelReportExcel(
   trechos: TrechoData[],
   vehicles: VehicleInfo[],
   tenantName?: string,
-  vehicleId?: string
+  vehicleId?: string,
+  selectedMonth?: string
 ): Promise<void> {
   const XLSX = await import("xlsx");
 
@@ -198,11 +206,21 @@ export async function generateFuelReportExcel(
   };
 
   const vehicle = vehicleId ? vehicles.find((v) => v.id === vehicleId) : null;
+
+  function getPeriodLabel(month?: string) {
+    if (!month || month === "all") return "Todos os períodos";
+    const [year, m] = month.split("-");
+    const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  const periodLabel = getPeriodLabel(selectedMonth);
   const summary = buildSummary(trechos);
 
   const headerRows = [
     [vehicle ? `Relatório de Combustível — ${vehicle.license_plate}` : "Relatório de Combustível — Frota Completa"],
     tenantName ? [`Empresa: ${tenantName}`] : [],
+    [`Período: ${periodLabel}`],
     [`Gerado em: ${new Date().toLocaleString("pt-BR")}`],
     [],
     ["RESUMO"],
@@ -234,8 +252,8 @@ export async function generateFuelReportExcel(
   XLSX.utils.book_append_sheet(wb, ws, "Combustível");
 
   const fileName = vehicle
-    ? `Relatorio_Combustivel_${vehicle.license_plate}_${new Date().toISOString().slice(0, 10)}.xlsx`
-    : `Relatorio_Combustivel_Frota_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    ? `Relatorio_Combustivel_${vehicle.license_plate}${selectedMonth && selectedMonth !== "all" ? "_" + selectedMonth : ""}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    : `Relatorio_Combustivel_Frota${selectedMonth && selectedMonth !== "all" ? "_" + selectedMonth : ""}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   XLSX.writeFile(wb, fileName);
 }
