@@ -44,7 +44,21 @@ export function Washing() {
                             <tbody className="divide-y">{records.map((r) => (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 text-sm">{getVehicleName(r.vehicle_id)}</td>
-                                    <td className="px-4 py-3 text-sm"><span className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-full text-xs">{VEHICLE_WASH_TYPE_LABELS[r.vehicle_type as VehicleWashType] || r.vehicle_type}</span></td>
+                                    <td className="px-4 py-3 text-sm">
+                                        {r.services && r.services.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {r.services.map((s, i) => (
+                                                    <span key={i} className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-full text-xs">
+                                                        {VEHICLE_WASH_TYPE_LABELS[s.type as VehicleWashType] || s.type}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-full text-xs">
+                                                {VEHICLE_WASH_TYPE_LABELS[r.vehicle_type as VehicleWashType] || r.vehicle_type || "-"}
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3 text-sm">{r.wash_place || "-"}</td>
                                     <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>

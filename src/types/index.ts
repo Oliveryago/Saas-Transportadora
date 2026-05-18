@@ -8,7 +8,7 @@ export type OilType = "motor" | "cambio" | "diferencial";
 
 export type SupplierType = "posto" | "oficina" | "lavajato" | "estacionamento" | "outro";
 
-export type VehicleWashType = "carro" | "cavalo" | "carreta" | "bitrem" | "rodotrem" | "outro";
+export type VehicleWashType = "interna" | "externa" | "cavalo" | "toco" | "truck" | "carreta" | "bitrem" | "rodotrem" | "lubrificacao" | "carro_simples" | "carro_completa" | "moto" | "van" | "outro" | "carro";
 
 export const IMPLEMENT_TYPE_LABELS: Record<ImplementType, string> = {
   carreta: "Carreta",
@@ -47,12 +47,21 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
 };
 
 export const VEHICLE_WASH_TYPE_LABELS: Record<VehicleWashType, string> = {
-  carro: "Carro",
-  cavalo: "Cavalo Mecânico",
-  carreta: "Carreta",
-  bitrem: "Bitrem",
-  rodotrem: "Rodotrem",
+  interna: "Lavagem Interna",
+  externa: "Lavagem Externa",
+  cavalo: "Lavagem Cavalo",
+  toco: "Lavagem Toco",
+  truck: "Lavagem Truck",
+  carreta: "Lavagem Carreta",
+  bitrem: "Lavagem Bitrem",
+  rodotrem: "Lavagem Rodotrem",
+  lubrificacao: "Lubrificação",
+  carro_simples: "Lavagem Carro Simples",
+  carro_completa: "Lavagem Carro Completa",
+  moto: "Lavagem Moto",
+  van: "Lavagem Van",
   outro: "Outro",
+  carro: "Carro",
 };
 
 export interface Tenant {
@@ -220,9 +229,10 @@ export interface WashingRecord {
   driver_id?: string;
   supplier_id?: string;
   wash_place?: string;
-  vehicle_type: VehicleWashType;
+  vehicle_type?: VehicleWashType | string;
   date: string;
   value_brl?: number;
+  services?: Array<{ type: string; price?: number }>;
   notes?: string;
   created_at: string;
   updated_at: string;
