@@ -229,10 +229,11 @@ export function Drivers() {
                       <div className="w-px h-full bg-gray-200"></div>
                       <button
                         onClick={(e) => handleGenerateProfile(e, driver)}
-                        className="px-4 py-3 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-colors"
+                        className="px-4 py-3 flex items-center justify-center gap-2 text-indigo-600 hover:bg-indigo-100 transition-colors font-semibold text-xs uppercase"
                         title="Gerar Ficha em PDF"
                       >
-                        <FileDown className="w-5 h-5" />
+                        <FileDown className="w-4 h-4" />
+                        Ficha PDF
                       </button>
                     </div>
                   </div>
