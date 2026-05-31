@@ -66,23 +66,28 @@ export function Drivers() {
     const implement2 = implementsList.find(i => i.id === driver.implement2_id);
     const implement2Str = implement2 ? `${implement2.license_plate} - ${implement2.model}` : "";
 
-    await generateDriverProfile({
-      id: driver.id,
-      name: driver.nome_completo,
-      cpf: driver.cpf,
-      birthDate: driver.data_nascimento,
-      phone: driver.phone,
-      cnhNumber: driver.numero_cnh,
-      cnhCategory: driver.categoria_cnh,
-      cnhValidity: driver.validade_cnh,
-      address: fullAddress,
-      active: driver.active,
-      photoUrl: driver.photo_url,
-      vehiclePlate: vehicleStr,
-      implementPlate: implementStr,
-      implement2Plate: implement2Str,
-      company: { settings, logoDataUrl }
-    });
+    try {
+      await generateDriverProfile({
+        id: driver.id,
+        name: driver.nome_completo,
+        cpf: driver.cpf,
+        birthDate: driver.data_nascimento,
+        phone: driver.phone,
+        cnhNumber: driver.numero_cnh,
+        cnhCategory: driver.categoria_cnh,
+        cnhValidity: driver.validade_cnh,
+        address: fullAddress,
+        active: driver.active,
+        photoUrl: driver.photo_url,
+        vehiclePlate: vehicleStr,
+        implementPlate: implementStr,
+        implement2Plate: implement2Str,
+        company: { settings, logoDataUrl }
+      });
+    } catch (err) {
+      console.error("Erro ao gerar ficha:", err);
+      alert(`Erro ao gerar ficha: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const filteredDrivers = drivers.filter(d => 

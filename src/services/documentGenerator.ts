@@ -404,6 +404,9 @@ export async function generateVoucher(data: VoucherData): Promise<void> {
  * Gera a Ficha Cadastral do Motorista em PDF
  */
 export async function generateDriverProfile(data: DriverProfileData) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
