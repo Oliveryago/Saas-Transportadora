@@ -401,6 +401,24 @@ export async function generateVoucher(data: VoucherData): Promise<void> {
 }
 
 /**
+ * Converte uma URL de imagem em base64 para uso no jsPDF
+ */
+async function urlToBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Gera a Ficha Cadastral do Motorista em PDF
  */
 export async function generateDriverProfile(data: DriverProfileData) {
@@ -409,139 +427,221 @@ export async function generateDriverProfile(data: DriverProfileData) {
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
-  
-  // Header
-  let y = addDocumentHeader(doc, "FICHA CADASTRAL DO MOTORISTA", data.company, data.tenantName);
-  y += 5;
+  const s = data.company?.settings;
 
-  // Status Badge
-  doc.setFontSize(10);
+  // ── Pré-carregar logo ─────────────────────────────────────────────────────
+  // Tentar em ordem: logoDataUrl já em base64 → logo_url no settings → nada
+  let logoBase64: string | null = data.company?.logoDataUrl || null;
+  if (!logoBase64 && s?.logo_url) {
+    logoBase64 = await urlToBase64(s.logo_url);
+  }
+
+  // ── Cabeçalho ─────────────────────────────────────────────────────────────
+  let y = 14;
+
+  // Logo (canto superior esquerdo, proporção real)
+  if (logoBase64) {
+    try {
+      const props = doc.getImageProperties(logoBase64);
+      const ratio = props.width / props.height;
+      const maxH = 22;
+      const maxW = 45;
+      let imgW = maxH * ratio;
+      let imgH = maxH;
+      if (imgW > maxW) {
+        imgW = maxW;
+        imgH = maxW / ratio;
+      }
+      doc.addImage(logoBase64, 15, y - 4, imgW, imgH);
+    } catch { /* ignore */ }
+  }
+
+  // Título centralizado
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  const statusText = data.active ? "ATIVO" : "INATIVO";
-  const badgeColor = data.active ? [34, 197, 94] : [156, 163, 175];
-  const badgeWidth = doc.getTextWidth(statusText) + 8;
-  doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
-  doc.roundedRect(pageWidth - 20 - badgeWidth, y, badgeWidth, 6, 1, 1, "F");
-  doc.text(statusText, pageWidth - 20 - badgeWidth / 2, y + 4.2, { align: "center" });
+  doc.setTextColor(30, 58, 138);
+  doc.text("FICHA CADASTRAL DO MOTORISTA", pageWidth / 2, y, { align: "center" });
+  y += 7;
 
-  // Photo
+  // Nome da empresa
+  const companyName = s?.company_name || data.tenantName || "";
+  if (companyName) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(40, 40, 40);
+    doc.text(companyName, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  // Linha com CNPJ | Tel | E-mail
+  if (s) {
+    const details: string[] = [];
+    if (s.cnpj) details.push(`CNPJ: ${formatCNPJ(s.cnpj)}`);
+    if (s.phone) details.push(`Tel: ${formatPhone(s.phone)}`);
+    if (s.email) details.push(s.email);
+    if (details.length > 0) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(details.join("   |   "), pageWidth / 2, y, { align: "center" });
+      y += 4;
+    }
+    const addressLine = buildAddressLine(s);
+    if (addressLine) {
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(110, 110, 110);
+      doc.text(addressLine, pageWidth / 2, y, { align: "center" });
+      y += 4;
+    }
+  }
+
+  // Linha divisória azul
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.5);
+  doc.line(15, y, pageWidth - 15, y);
+  y += 8;
+
+  // ── Status Badge ──────────────────────────────────────────────────────────
+  const statusText = data.active ? "ATIVO" : "INATIVO";
+  const badgeColor: [number, number, number] = data.active ? [34, 197, 94] : [156, 163, 175];
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  const badgeWidth = doc.getTextWidth(statusText) + 8;
+  doc.setFillColor(...badgeColor);
+  doc.roundedRect(pageWidth - 15 - badgeWidth, y - 1, badgeWidth, 6, 1, 1, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.text(statusText, pageWidth - 15 - badgeWidth / 2, y + 3.5, { align: "center" });
+
+  // ── Foto + Dados Pessoais ─────────────────────────────────────────────────
+  const photoX = 15;
+  const photoY = y;
+  const photoW = 38;
+  const photoH = 38;
+
   if (data.photoUrl) {
     try {
-      doc.addImage(data.photoUrl, 20, y, 35, 35, undefined, "FAST");
+      const photoBase64 = await urlToBase64(data.photoUrl);
+      if (photoBase64) {
+        doc.addImage(photoBase64, photoX, photoY, photoW, photoH);
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.3);
+        doc.rect(photoX, photoY, photoW, photoH);
+      } else {
+        throw new Error("no base64");
+      }
     } catch {
       doc.setDrawColor(200);
-      doc.rect(20, y, 35, 35);
+      doc.setLineWidth(0.3);
+      doc.rect(photoX, photoY, photoW, photoH);
+      doc.setFontSize(7);
       doc.setTextColor(150);
-      doc.text("Sem foto", 37.5, y + 18, { align: "center" });
+      doc.text("Sem foto", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
     }
   } else {
     doc.setDrawColor(200);
-    doc.rect(20, y, 35, 35);
+    doc.setLineWidth(0.3);
+    doc.rect(photoX, photoY, photoW, photoH);
+    doc.setFontSize(7);
     doc.setTextColor(150);
-    doc.text("Sem foto", 37.5, y + 18, { align: "center" });
+    doc.text("Sem foto", photoX + photoW / 2, photoY + photoH / 2, { align: "center" });
   }
 
-  // Personal Info Block
-  doc.setFontSize(14);
-  doc.setTextColor(30, 30, 30);
+  // Dados pessoais ao lado da foto
+  const infoX = photoX + photoW + 6;
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text(data.name, 60, y + 5);
+  doc.setTextColor(30, 30, 30);
+  doc.text(data.name, infoX, y + 7);
 
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`CPF: ${data.cpf}`, 60, y + 12);
+  doc.setTextColor(70, 70, 70);
+  doc.text(`CPF: ${data.cpf}`, infoX, y + 14);
   if (data.birthDate) {
-    const formattedDate = formatDate(data.birthDate);
-    doc.text(`Nascimento: ${formattedDate}`, 60, y + 18);
+    doc.text(`Nascimento: ${formatDate(data.birthDate)}`, infoX, y + 20);
   }
   if (data.phone) {
-    doc.text(`Telefone: ${formatPhone(data.phone)}`, 60, y + 24);
+    doc.text(`Telefone: ${formatPhone(data.phone)}`, infoX, y + 26);
   }
 
-  y += 45;
+  y += photoH + 8;
 
-  // Driver License (CNH) Block
-  doc.setFillColor(245, 247, 250);
-  doc.rect(20, y, pageWidth - 40, 8, "F");
-  doc.setFontSize(11);
+  // ── CNH ───────────────────────────────────────────────────────────────────
+  doc.setFillColor(235, 240, 255);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(30, 58, 138);
-  doc.text("Documentação (CNH)", 22, y + 6);
-  y += 14;
-
-  const cnhDetails = [
-    ["Número da CNH:", data.cnhNumber || "Não informado"],
-    ["Categoria:", data.cnhCategory || "Não informado"],
-    ["Validade:", data.cnhValidity ? formatDate(data.cnhValidity) : "Não informado"]
-  ];
+  doc.text("Documentação (CNH)", 17, y + 5);
+  y += 12;
 
   autoTable(doc, {
     startY: y,
-    body: cnhDetails,
+    body: [
+      ["Número da CNH:", data.cnhNumber || "Não informado"],
+      ["Categoria:", data.cnhCategory || "Não informado"],
+      ["Validade:", data.cnhValidity ? formatDate(data.cnhValidity) : "Não informado"],
+    ],
     theme: "plain",
-    styles: { fontSize: 10, cellPadding: 2 },
+    styles: { fontSize: 9.5, cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: "bold", cellWidth: 50, textColor: [80, 80, 80] },
-      1: { textColor: [30, 30, 30] }
+      0: { fontStyle: "bold", cellWidth: 50, textColor: [60, 60, 60] },
+      1: { textColor: [20, 20, 20] }
     },
-    margin: { left: 20 }
+    margin: { left: 15, right: 15 }
   });
 
-  y = (doc as any).lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 8;
 
-  // Address
+  // ── Endereço ──────────────────────────────────────────────────────────────
   if (data.address) {
-    doc.setFillColor(245, 247, 250);
-    doc.rect(20, y, pageWidth - 40, 8, "F");
-    doc.setFontSize(11);
+    doc.setFillColor(235, 240, 255);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 58, 138);
-    doc.text("Endereço", 22, y + 6);
-    y += 14;
+    doc.text("Endereço", 17, y + 5);
+    y += 12;
 
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(50, 50, 50);
-    
-    const splitAddress = doc.splitTextToSize(data.address, pageWidth - 40);
-    doc.text(splitAddress, 20, y);
-    y += (splitAddress.length * 5) + 10;
+    doc.setTextColor(40, 40, 40);
+    const splitAddress = doc.splitTextToSize(data.address, pageWidth - 30);
+    doc.text(splitAddress, 15, y);
+    y += (splitAddress.length * 5) + 8;
   }
 
-  // Fleet Link
-  doc.setFillColor(245, 247, 250);
-  doc.rect(20, y, pageWidth - 40, 8, "F");
-  doc.setFontSize(11);
+  // ── Vínculo de Frota ──────────────────────────────────────────────────────
+  doc.setFillColor(235, 240, 255);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(30, 58, 138);
-  doc.text("Vínculo de Frota", 22, y + 6);
-  y += 14;
+  doc.text("Vínculo de Frota", 17, y + 5);
+  y += 12;
 
-  const fleetDetails = [
+  const fleetRows: string[][] = [
     ["Cavalo Mecânico:", data.vehiclePlate || "Nenhum vinculado"],
-    ["1º Implemento:", data.implementPlate || "Nenhum vinculado"]
+    ["1º Implemento:", data.implementPlate || "Nenhum vinculado"],
   ];
-
   if (data.implement2Plate) {
-    fleetDetails.push(["2º Implemento:", data.implement2Plate]);
+    fleetRows.push(["2º Implemento:", data.implement2Plate]);
   }
 
   autoTable(doc, {
     startY: y,
-    body: fleetDetails,
+    body: fleetRows,
     theme: "plain",
-    styles: { fontSize: 10, cellPadding: 2 },
+    styles: { fontSize: 9.5, cellPadding: 2 },
     columnStyles: {
-      0: { fontStyle: "bold", cellWidth: 50, textColor: [80, 80, 80] },
-      1: { textColor: [30, 30, 30] }
+      0: { fontStyle: "bold", cellWidth: 50, textColor: [60, 60, 60] },
+      1: { textColor: [20, 20, 20] }
     },
-    margin: { left: 20 }
+    margin: { left: 15, right: 15 }
   });
 
   addDocumentFooter(doc);
 
-  // Actually save the PDF to trigger download
   doc.save(`Ficha_Motorista_${data.name.replace(/\s+/g, "_")}.pdf`);
 }
