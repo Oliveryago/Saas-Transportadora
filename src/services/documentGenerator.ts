@@ -50,6 +50,24 @@ export interface VoucherData {
   company?: CompanyInfo;
 }
 
+export interface DriverProfileData {
+  id: string;
+  name: string;
+  cpf: string;
+  birthDate?: string;
+  phone?: string;
+  cnhNumber?: string;
+  cnhCategory?: string;
+  cnhValidity?: string;
+  address?: string;
+  active: boolean;
+  photoUrl?: string;
+  vehiclePlate?: string;
+  implementPlate?: string;
+  tenantName?: string;
+  company?: CompanyInfo;
+}
+
 /**
  * Helper to add a rich header to portrait documents.
  * Returns the Y position after the header block.
@@ -379,4 +397,142 @@ export async function generateVoucher(data: VoucherData): Promise<void> {
   doc.text("Documento gerado eletronicamente.", pageWidth / 2, pageHeight - 8, { align: "center" });
 
   doc.save(`Comprovante_${data.type}_${data.vehiclePlate}_${data.id.substring(0, 8)}.pdf`);
+}
+
+/**
+ * Gera a Ficha Cadastral do Motorista em PDF
+ */
+export async function generateDriverProfile(data: DriverProfileData) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Header
+  let y = addDocumentHeader(doc, "FICHA CADASTRAL DO MOTORISTA", data.company, data.tenantName);
+  y += 5;
+
+  // Status Badge
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  const statusText = data.active ? "ATIVO" : "INATIVO";
+  const badgeColor = data.active ? [34, 197, 94] : [156, 163, 175];
+  const badgeWidth = doc.getTextWidth(statusText) + 8;
+  doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2]);
+  doc.roundedRect(pageWidth - 20 - badgeWidth, y, badgeWidth, 6, 1, 1, "F");
+  doc.text(statusText, pageWidth - 20 - badgeWidth / 2, y + 4.2, { align: "center" });
+
+  // Photo
+  if (data.photoUrl) {
+    try {
+      doc.addImage(data.photoUrl, 20, y, 35, 35, undefined, "FAST");
+    } catch {
+      doc.setDrawColor(200);
+      doc.rect(20, y, 35, 35);
+      doc.setTextColor(150);
+      doc.text("Sem foto", 37.5, y + 18, { align: "center" });
+    }
+  } else {
+    doc.setDrawColor(200);
+    doc.rect(20, y, 35, 35);
+    doc.setTextColor(150);
+    doc.text("Sem foto", 37.5, y + 18, { align: "center" });
+  }
+
+  // Personal Info Block
+  doc.setFontSize(14);
+  doc.setTextColor(30, 30, 30);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.name, 60, y + 5);
+
+  doc.setFontSize(10);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont("helvetica", "normal");
+  doc.text(`CPF: ${data.cpf}`, 60, y + 12);
+  if (data.birthDate) {
+    const formattedDate = formatDate(data.birthDate);
+    doc.text(`Nascimento: ${formattedDate}`, 60, y + 18);
+  }
+  if (data.phone) {
+    doc.text(`Telefone: ${formatPhone(data.phone)}`, 60, y + 24);
+  }
+
+  y += 45;
+
+  // Driver License (CNH) Block
+  doc.setFillColor(245, 247, 250);
+  doc.rect(20, y, pageWidth - 40, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 138);
+  doc.text("Documentação (CNH)", 22, y + 6);
+  y += 14;
+
+  const cnhDetails = [
+    ["Número da CNH:", data.cnhNumber || "Não informado"],
+    ["Categoria:", data.cnhCategory || "Não informado"],
+    ["Validade:", data.cnhValidity ? formatDate(data.cnhValidity) : "Não informado"]
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    body: cnhDetails,
+    theme: "plain",
+    styles: { fontSize: 10, cellPadding: 2 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 50, textColor: [80, 80, 80] },
+      1: { textColor: [30, 30, 30] }
+    },
+    margin: { left: 20 }
+  });
+
+  y = (doc as any).lastAutoTable.finalY + 10;
+
+  // Address
+  if (data.address) {
+    doc.setFillColor(245, 247, 250);
+    doc.rect(20, y, pageWidth - 40, 8, "F");
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 58, 138);
+    doc.text("Endereço", 22, y + 6);
+    y += 14;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50, 50, 50);
+    
+    const splitAddress = doc.splitTextToSize(data.address, pageWidth - 40);
+    doc.text(splitAddress, 20, y);
+    y += (splitAddress.length * 5) + 10;
+  }
+
+  // Fleet Link
+  doc.setFillColor(245, 247, 250);
+  doc.rect(20, y, pageWidth - 40, 8, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 138);
+  doc.text("Vínculo de Frota", 22, y + 6);
+  y += 14;
+
+  const fleetDetails = [
+    ["Cavalo Mecânico:", data.vehiclePlate || "Nenhum vinculado"],
+    ["Implemento:", data.implementPlate || "Nenhum vinculado"]
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    body: fleetDetails,
+    theme: "plain",
+    styles: { fontSize: 10, cellPadding: 2 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 50, textColor: [80, 80, 80] },
+      1: { textColor: [30, 30, 30] }
+    },
+    margin: { left: 20 }
+  });
+
+  addDocumentFooter(doc);
+
+  doc.save(`Motorista_${data.name.replace(/\s+/g, '_')}_${data.id.substring(0,8)}.pdf`);
 }

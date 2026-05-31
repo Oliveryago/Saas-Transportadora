@@ -12,7 +12,17 @@ CREATE TABLE IF NOT EXISTS public.drivers (
     categoria_cnh TEXT,
     validade_cnh DATE,
     endereco TEXT,
+    cep TEXT,
+    street TEXT,
+    number TEXT,
+    neighborhood TEXT,
+    city TEXT,
+    state TEXT,
+    phone TEXT,
+    photo_url TEXT,
     cnh_url TEXT, -- Link para o documento no Supabase Storage
+    vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL,
+    implement_id UUID REFERENCES public.implements(id) ON DELETE SET NULL,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -83,3 +93,41 @@ EXECUTE PROCEDURE update_updated_at_column();
 
 -- Comentários da Tabela
 COMMENT ON TABLE public.drivers IS 'Tabela central de motoristas gerenciados por empresa (multi-tenant).';
+
+-- --------------------------------------------------------
+-- Storage: driver-photos
+-- --------------------------------------------------------
+
+-- Cria o bucket se não existir
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('driver-photos', 'driver-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Política: Todos podem ver fotos de motoristas
+CREATE POLICY "Public Access for Driver Photos"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'driver-photos');
+
+-- Política: Usuários autenticados podem fazer upload
+CREATE POLICY "Authenticated users can upload driver photos"
+ON storage.objects FOR INSERT
+WITH CHECK (
+    bucket_id = 'driver-photos' 
+    AND auth.role() = 'authenticated'
+);
+
+-- Política: Usuários autenticados podem atualizar
+CREATE POLICY "Authenticated users can update driver photos"
+ON storage.objects FOR UPDATE
+USING (
+    bucket_id = 'driver-photos' 
+    AND auth.role() = 'authenticated'
+);
+
+-- Política: Usuários autenticados podem deletar
+CREATE POLICY "Authenticated users can delete driver photos"
+ON storage.objects FOR DELETE
+USING (
+    bucket_id = 'driver-photos' 
+    AND auth.role() = 'authenticated'
+);

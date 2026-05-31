@@ -12,6 +12,7 @@ export function useDrivers() {
   const { tenant, user } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDrivers = useCallback(async () => {
@@ -72,6 +73,32 @@ export function useDrivers() {
     }
   };
 
+  const uploadDriverPhoto = async (file: File): Promise<string | null> => {
+    if (!tenant) return null;
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `${tenant.id}/${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("driver-photos")
+        .upload(fileName, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("driver-photos")
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (err: any) {
+      console.error("Erro ao fazer upload da foto do motorista:", err);
+      throw err;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   useEffect(() => {
     fetchDrivers();
   }, [fetchDrivers]);
@@ -80,8 +107,10 @@ export function useDrivers() {
     drivers,
     loading,
     error,
+    uploadingPhoto,
     refresh: fetchDrivers,
     addDriver,
-    updateDriver
+    updateDriver,
+    uploadDriverPhoto
   };
 }

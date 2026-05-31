@@ -304,8 +304,18 @@ export interface Driver {
   numero_cnh?: string;
   categoria_cnh?: string;
   validade_cnh?: string;
-  endereco?: string;
+  endereco?: string; // fallback
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  phone?: string;
+  photo_url?: string;
   cnh_url?: string;
+  vehicle_id?: string;
+  implement_id?: string;
   active: boolean;
   created_at: string;
   updated_at: string;

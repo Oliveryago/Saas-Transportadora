@@ -1,11 +1,17 @@
 import React, { useState } from "react";
-import { UserPlus, Search, Filter, Mail, Phone, MapPin, User, ChevronRight, FileText } from "lucide-react";
+import { UserPlus, Search, Filter, MapPin, User, ChevronRight, FileText, FileDown } from "lucide-react";
 import { useDrivers } from "../hooks/useDrivers";
+import { useVehicles } from "../hooks/useVehicles";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import { MotoristaForm } from "../components/motorista/MotoristaForm";
+import { generateDriverProfile } from "../services/documentGenerator";
 import type { Driver } from "../types";
 
 export function Drivers() {
   const { drivers, loading, addDriver, updateDriver } = useDrivers();
+  const { vehicles } = useVehicles();
+  const { settings, logoPreview: logoDataUrl } = useCompanySettings();
+  
   const [showForm, setShowForm] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,17 +38,62 @@ export function Drivers() {
     setShowForm(true);
   };
 
+  const handleGenerateProfile = async (e: React.MouseEvent, driver: Driver) => {
+    e.stopPropagation();
+    
+    // Build full address string if using separate fields
+    let fullAddress = driver.endereco || "";
+    if (!fullAddress && driver.street) {
+      const parts = [
+        driver.street,
+        driver.number,
+        driver.neighborhood,
+        driver.city,
+        driver.state ? `- ${driver.state}` : "",
+        driver.cep ? `CEP: ${driver.cep}` : ""
+      ].filter(Boolean);
+      fullAddress = parts.join(", ");
+    }
+
+    const vehicle = vehicles.find(v => v.id === driver.vehicle_id);
+    const vehicleStr = vehicle ? `${vehicle.license_plate} - ${vehicle.model}` : "";
+
+    await generateDriverProfile({
+      id: driver.id,
+      name: driver.nome_completo,
+      cpf: driver.cpf,
+      birthDate: driver.data_nascimento,
+      phone: driver.phone,
+      cnhNumber: driver.numero_cnh,
+      cnhCategory: driver.categoria_cnh,
+      cnhValidity: driver.validade_cnh,
+      address: fullAddress,
+      active: driver.active,
+      photoUrl: driver.photo_url,
+      vehiclePlate: vehicleStr,
+      company: { settings, logoDataUrl }
+    });
+  };
+
   const filteredDrivers = drivers.filter(d => 
     d.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.cpf.includes(searchTerm)
   );
+
+  const maskCpf = (cpf: string) => {
+    const cleaned = cpf.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      return `***.${cleaned.substring(3, 6)}.${cleaned.substring(6, 9)}-**`;
+    }
+    return cpf;
+  };
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Motoristas</h1>
-          <p className="text-gray-500">Controle de motoristas e documentosda frota</p>
+          <p className="text-gray-500">Controle de motoristas e documentos da frota</p>
         </div>
         <button
           onClick={() => {
@@ -70,7 +121,6 @@ export function Drivers() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Actions Bar */}
           <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -90,7 +140,6 @@ export function Drivers() {
             </div>
           </div>
 
-          {/* Drivers Grid */}
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map(i => (
@@ -112,54 +161,73 @@ export function Drivers() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDrivers.map((driver) => (
-                <div 
-                  key={driver.id} 
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group cursor-pointer"
-                >
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
-                        <User className="w-6 h-6" />
+              {filteredDrivers.map((driver) => {
+                const linkedVehicle = vehicles.find(v => v.id === driver.vehicle_id);
+                return (
+                  <div 
+                    key={driver.id} 
+                    className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
+                  >
+                    <div className="p-5 flex-1 cursor-pointer" onClick={() => handleEdit(driver)}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 overflow-hidden border border-indigo-100">
+                          {driver.photo_url ? (
+                            <img src={driver.photo_url} alt="Perfil" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${driver.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {driver.active ? 'Ativo' : 'Inativo'}
+                          </span>
+                          <span className="text-[10px] text-gray-400 mt-1 font-mono uppercase tracking-tighter">
+                            CNH: {driver.categoria_cnh || 'N/A'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${driver.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {driver.active ? 'Ativo' : 'Inativo'}
-                        </span>
-                        <span className="text-[10px] text-gray-400 mt-1 font-mono uppercase tracking-tighter">
-                          CNH: {driver.categoria_cnh || 'N/A'}
-                        </span>
+                      
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors mb-1 truncate">
+                        {driver.nome_completo}
+                      </h3>
+                      <p className="text-sm text-gray-500 flex items-center gap-1.5 mb-4 font-medium">
+                        CPF: {maskCpf(driver.cpf)}
+                      </p>
+
+                      <div className="space-y-2 pt-4 border-t border-gray-50">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <span>CNH: {driver.numero_cnh || '---'}</span>
+                        </div>
+                        {linkedVehicle && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="truncate">Vínculo: {linkedVehicle.license_plate}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors mb-1 truncate">
-                      {driver.nome_completo}
-                    </h3>
-                    <p className="text-sm text-gray-500 flex items-center gap-1.5 mb-4 font-medium">
-                      CPF: {driver.cpf}
-                    </p>
-
-                    <div className="space-y-2 pt-4 border-t border-gray-50">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <span>CNH: {driver.numero_cnh || '---'}</span>
+                    <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50">
+                      <div 
+                        className="flex-1 px-5 py-3 flex items-center justify-between group-hover:bg-indigo-50 transition-colors cursor-pointer"
+                        onClick={() => handleEdit(driver)}
+                      >
+                        <span className="text-xs font-bold text-gray-400 uppercase group-hover:text-indigo-400">Editar</span>
+                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span className="truncate">{driver.endereco || 'Endereço não informado'}</span>
-                      </div>
+                      <div className="w-px h-full bg-gray-200"></div>
+                      <button
+                        onClick={(e) => handleGenerateProfile(e, driver)}
+                        className="px-4 py-3 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-colors"
+                        title="Gerar Ficha em PDF"
+                      >
+                        <FileDown className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
-                  
-                  <div 
-                    className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between group-hover:bg-indigo-50 transition-colors cursor-pointer"
-                    onClick={() => handleEdit(driver)}
-                  >
-                    <span className="text-xs font-bold text-gray-400 uppercase group-hover:text-indigo-400">Editar Motorista</span>
-                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
