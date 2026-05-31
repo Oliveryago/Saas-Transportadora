@@ -3,6 +3,7 @@ import { UserPlus, Search, Filter, MapPin, User, ChevronRight, FileText, FileDow
 import { useDrivers } from "../hooks/useDrivers";
 import { useVehicles } from "../hooks/useVehicles";
 import { useCompanySettings } from "../hooks/useCompanySettings";
+import { useImplements } from "../hooks/useImplements";
 import { MotoristaForm } from "../components/motorista/MotoristaForm";
 import { generateDriverProfile } from "../services/documentGenerator";
 import type { Driver } from "../types";
@@ -10,6 +11,7 @@ import type { Driver } from "../types";
 export function Drivers() {
   const { drivers, loading, addDriver, updateDriver } = useDrivers();
   const { vehicles } = useVehicles();
+  const { implements: implementsList } = useImplements();
   const { settings, logoPreview: logoDataUrl } = useCompanySettings();
   
   const [showForm, setShowForm] = useState(false);
@@ -58,6 +60,12 @@ export function Drivers() {
     const vehicle = vehicles.find(v => v.id === driver.vehicle_id);
     const vehicleStr = vehicle ? `${vehicle.license_plate} - ${vehicle.model}` : "";
 
+    const implement = implementsList.find(i => i.id === driver.implement_id);
+    const implementStr = implement ? `${implement.license_plate} - ${implement.model}` : "";
+
+    const implement2 = implementsList.find(i => i.id === driver.implement2_id);
+    const implement2Str = implement2 ? `${implement2.license_plate} - ${implement2.model}` : "";
+
     await generateDriverProfile({
       id: driver.id,
       name: driver.nome_completo,
@@ -71,6 +79,8 @@ export function Drivers() {
       active: driver.active,
       photoUrl: driver.photo_url,
       vehiclePlate: vehicleStr,
+      implementPlate: implementStr,
+      implement2Plate: implement2Str,
       company: { settings, logoDataUrl }
     });
   };

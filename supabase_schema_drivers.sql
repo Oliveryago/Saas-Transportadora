@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS public.drivers (
     cnh_url TEXT, -- Link para o documento no Supabase Storage
     vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL,
     implement_id UUID REFERENCES public.implements(id) ON DELETE SET NULL,
+    implement2_id UUID REFERENCES public.implements(id) ON DELETE SET NULL,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()

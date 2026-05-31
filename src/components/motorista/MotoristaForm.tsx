@@ -33,6 +33,7 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
     photo_url: initialData?.photo_url || "",
     vehicle_id: initialData?.vehicle_id || "",
     implement_id: initialData?.implement_id || "",
+    implement2_id: initialData?.implement2_id || "",
   });
 
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
@@ -252,7 +253,7 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
           <Truck className="w-5 h-5 text-indigo-600" />
           <h3 className="text-lg font-bold text-gray-800">Vínculo de Frota</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-gray-500 uppercase">Cavalo Mecânico (Veículo)</label>
             <select
@@ -272,6 +273,19 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
               className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
               value={formData.implement_id}
               onChange={e => setFormData({ ...formData, implement_id: e.target.value })}
+            >
+              <option value="">Sem vínculo</option>
+              {implementsList.map(i => (
+                <option key={i.id} value={i.id}>{i.license_plate} - {i.model}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-500 uppercase">2º Implemento (Opcional)</label>
+            <select
+              className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+              value={formData.implement2_id}
+              onChange={e => setFormData({ ...formData, implement2_id: e.target.value })}
             >
               <option value="">Sem vínculo</option>
               {implementsList.map(i => (

@@ -316,6 +316,7 @@ export interface Driver {
   cnh_url?: string;
   vehicle_id?: string;
   implement_id?: string;
+  implement2_id?: string;
   active: boolean;
   created_at: string;
   updated_at: string;

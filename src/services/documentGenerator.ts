@@ -64,6 +64,7 @@ export interface DriverProfileData {
   photoUrl?: string;
   vehiclePlate?: string;
   implementPlate?: string;
+  implement2Plate?: string;
   tenantName?: string;
   company?: CompanyInfo;
 }
@@ -517,8 +518,12 @@ export async function generateDriverProfile(data: DriverProfileData) {
 
   const fleetDetails = [
     ["Cavalo Mecânico:", data.vehiclePlate || "Nenhum vinculado"],
-    ["Implemento:", data.implementPlate || "Nenhum vinculado"]
+    ["1º Implemento:", data.implementPlate || "Nenhum vinculado"]
   ];
+
+  if (data.implement2Plate) {
+    fleetDetails.push(["2º Implemento:", data.implement2Plate]);
+  }
 
   autoTable(doc, {
     startY: y,
