@@ -48,9 +48,18 @@ function renderPDFHeader(
   // ── Logo ───────────────────────────────────────────────────────────────────
   if (logoDataUrl) {
     try {
-      const logoSize = 18;
-      doc.addImage(logoDataUrl, "PNG", leftX, y - 4, logoSize, logoSize);
-      leftX = leftX + logoSize + 5;
+      const props = doc.getImageProperties(logoDataUrl);
+      const ratio = props.width / props.height;
+      const maxLogoSize = 18;
+      let imgW = maxLogoSize;
+      let imgH = maxLogoSize;
+      if (ratio > 1) {
+        imgH = maxLogoSize / ratio;
+      } else {
+        imgW = maxLogoSize * ratio;
+      }
+      doc.addImage(logoDataUrl, leftX, y - 4, imgW, imgH);
+      leftX = leftX + imgW + 5;
     } catch {
       // ignore if logo can't be rendered
     }

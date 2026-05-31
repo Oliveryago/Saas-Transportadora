@@ -100,12 +100,19 @@ export function FuelReportModal({
     }
     setLoading(true);
     try {
+      let finalCompany = company;
+      if (company?.settings?.logo_url && !company.logoDataUrl) {
+        const { urlToDataURL } = await import("../../services/companySettingsHelper");
+        const logoDataUrl = await urlToDataURL(company.settings.logo_url);
+        finalCompany = { ...company, logoDataUrl };
+      }
+
       if (format === "pdf") {
         const { generateFuelReportPDF } = await import("../../services/fuelReportGenerator");
-        await generateFuelReportPDF(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, company);
+        await generateFuelReportPDF(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, finalCompany);
       } else {
         const { generateFuelReportExcel } = await import("../../services/fuelReportGenerator");
-        await generateFuelReportExcel(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, company);
+        await generateFuelReportExcel(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, finalCompany);
       }
       onClose();
     } catch (e) {

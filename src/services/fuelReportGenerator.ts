@@ -114,7 +114,19 @@ export async function generateFuelReportPDF(
   // Logo in header
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", 8, 5, 24, 24);
+      const props = doc.getImageProperties(logoDataUrl);
+      const ratio = props.width / props.height;
+      const maxLogoSize = 24;
+      let imgW = maxLogoSize;
+      let imgH = maxLogoSize;
+      if (ratio > 1) {
+        imgH = maxLogoSize / ratio;
+      } else {
+        imgW = maxLogoSize * ratio;
+      }
+      
+      const imgY = 18 - (imgH / 2);
+      doc.addImage(logoDataUrl, 8, imgY, imgW, imgH);
     } catch { /* ignore */ }
   }
 

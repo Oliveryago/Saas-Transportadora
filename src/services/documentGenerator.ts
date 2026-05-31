@@ -70,7 +70,17 @@ function addDocumentHeader(
   // Logo (top-left, portrait)
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", 20, y - 4, 18, 18);
+      const props = doc.getImageProperties(logoDataUrl);
+      const ratio = props.width / props.height;
+      const maxLogoSize = 18;
+      let imgW = maxLogoSize;
+      let imgH = maxLogoSize;
+      if (ratio > 1) {
+        imgH = maxLogoSize / ratio;
+      } else {
+        imgW = maxLogoSize * ratio;
+      }
+      doc.addImage(logoDataUrl, 20, y - 4, imgW, imgH);
     } catch {
       // ignore
     }
@@ -295,7 +305,17 @@ export async function generateVoucher(data: VoucherData): Promise<void> {
 
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", 10, y - 4, 14, 14);
+      const props = doc.getImageProperties(logoDataUrl);
+      const ratio = props.width / props.height;
+      const maxLogoSize = 14;
+      let imgW = maxLogoSize;
+      let imgH = maxLogoSize;
+      if (ratio > 1) {
+        imgH = maxLogoSize / ratio;
+      } else {
+        imgW = maxLogoSize * ratio;
+      }
+      doc.addImage(logoDataUrl, 10, y - 4, imgW, imgH);
     } catch { /* ignore */ }
   }
 
