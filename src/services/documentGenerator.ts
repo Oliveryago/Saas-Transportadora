@@ -539,5 +539,6 @@ export async function generateDriverProfile(data: DriverProfileData) {
 
   addDocumentFooter(doc);
 
-  doc.save(`Motorista_${data.name.replace(/\s+/g, '_')}_${data.id.substring(0,8)}.pdf`);
+  // Actually save the PDF to trigger download
+  doc.save(`Ficha_Motorista_${data.name.replace(/\s+/g, "_")}.pdf`);
 }
