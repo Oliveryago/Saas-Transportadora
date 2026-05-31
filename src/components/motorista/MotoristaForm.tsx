@@ -118,7 +118,18 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Sanitize empty strings to null for UUID and DATE columns
+    const sanitizedData = {
+      ...formData,
+      vehicle_id: formData.vehicle_id || null,
+      implement_id: formData.implement_id || null,
+      implement2_id: formData.implement2_id || null,
+      data_nascimento: formData.data_nascimento || null,
+      validade_cnh: formData.validade_cnh || null,
+    };
+    
+    onSubmit(sanitizedData);
   };
 
   return (

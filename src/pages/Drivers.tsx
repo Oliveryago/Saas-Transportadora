@@ -31,7 +31,7 @@ export function Drivers() {
       setEditingDriver(null);
     } catch (error) {
       console.error("Falha ao salvar:", error);
-      alert("Erro ao salvar motorista.");
+      alert(`Erro ao salvar motorista: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   };
 
