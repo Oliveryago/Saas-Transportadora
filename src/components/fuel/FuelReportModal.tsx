@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { X, FileText, Download, Calendar, Loader2 } from "lucide-react";
+import type { CompanySettings } from "../../types";
 
 interface TrechoData {
   recordId: string;
@@ -22,13 +23,19 @@ interface VehicleInfo {
   model: string;
 }
 
+interface CompanyInfo {
+  settings?: CompanySettings | null;
+  logoDataUrl?: string | null;
+}
+
 interface FuelReportModalProps {
   open: boolean;
   onClose: () => void;
   trechos: TrechoData[];
   vehicles: VehicleInfo[];
   tenantName?: string;
-  vehicleId?: string; // undefined = relatório geral
+  vehicleId?: string;
+  company?: CompanyInfo;
 }
 
 function getMonthOptions(trechos: TrechoData[]) {
@@ -57,6 +64,7 @@ export function FuelReportModal({
   vehicles,
   tenantName,
   vehicleId,
+  company,
 }: FuelReportModalProps) {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [format, setFormat] = useState<"pdf" | "excel">("pdf");
@@ -94,10 +102,10 @@ export function FuelReportModal({
     try {
       if (format === "pdf") {
         const { generateFuelReportPDF } = await import("../../services/fuelReportGenerator");
-        await generateFuelReportPDF(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth);
+        await generateFuelReportPDF(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, company);
       } else {
         const { generateFuelReportExcel } = await import("../../services/fuelReportGenerator");
-        await generateFuelReportExcel(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth);
+        await generateFuelReportExcel(filteredTrechos, vehicles, tenantName, vehicleId, selectedMonth, company);
       }
       onClose();
     } catch (e) {

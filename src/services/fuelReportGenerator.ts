@@ -1,4 +1,11 @@
 import { formatBRL } from "./reportExporter";
+import { buildAddressLine, formatCNPJ, formatPhone } from "./companySettingsHelper";
+import type { CompanySettings } from "../types";
+
+export interface CompanyInfo {
+  settings?: CompanySettings | null;
+  logoDataUrl?: string | null;
+}
 
 interface TrechoData {
   recordId: string;
@@ -67,7 +74,8 @@ export async function generateFuelReportPDF(
   vehicles: VehicleInfo[],
   tenantName?: string,
   vehicleId?: string,
-  selectedMonth?: string
+  selectedMonth?: string,
+  company?: CompanyInfo
 ): Promise<void> {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
@@ -75,6 +83,10 @@ export async function generateFuelReportPDF(
   const doc = new jsPDF({ orientation: "landscape" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const now = new Date().toLocaleString("pt-BR");
+
+  const s = company?.settings;
+  const logoDataUrl = company?.logoDataUrl;
+  const displayName = s?.company_name || tenantName || "";
 
   const getVehicleName = (id: string) => {
     const v = vehicles.find((v) => v.id === id);
@@ -91,34 +103,54 @@ export async function generateFuelReportPDF(
   }
 
   const periodLabel = getPeriodLabel(selectedMonth);
-
   const title = vehicle
     ? `RELATÓRIO DE COMBUSTÍVEL — ${vehicle.license_plate}`
     : "RELATÓRIO DE COMBUSTÍVEL — FROTA COMPLETA";
 
-  // ── Header ──────────────────────────────────────────────────────────────
-  doc.setFillColor(16, 120, 60); // dark green
-  doc.rect(0, 0, pageWidth, 28, "F");
+  // ── Header background ─────────────────────────────────────────────────────
+  doc.setFillColor(16, 120, 60);
+  doc.rect(0, 0, pageWidth, 36, "F");
 
-  doc.setFontSize(16);
+  // Logo in header
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, "PNG", 8, 5, 24, 24);
+    } catch { /* ignore */ }
+  }
+
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
   doc.text(title, pageWidth / 2, 10, { align: "center" });
 
-  if (tenantName) {
+  if (displayName) {
     doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(tenantName, pageWidth / 2, 18, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.text(displayName, pageWidth / 2, 17, { align: "center" });
+  }
+
+  // Company details in header
+  if (s) {
+    const details: string[] = [];
+    if (s.cnpj) details.push(`CNPJ: ${formatCNPJ(s.cnpj)}`);
+    if (s.phone) details.push(`Tel: ${formatPhone(s.phone)}`);
+    if (s.email) details.push(s.email);
+    if (details.length > 0) {
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(200, 255, 220);
+      doc.text(details.join("  |  "), pageWidth / 2, 23, { align: "center" });
+    }
   }
 
   doc.setFontSize(8);
   doc.setTextColor(200, 255, 200);
-  doc.text(`Período: ${periodLabel}   |   Gerado em: ${now}`, pageWidth / 2, 26, { align: "center" });
+  doc.text(`Período: ${periodLabel}   |   Gerado em: ${now}`, pageWidth / 2, 32, { align: "center" });
 
-  // ── Summary Cards ────────────────────────────────────────────────────────
+  // ── Summary Cards ─────────────────────────────────────────────────────────
   const summary = buildSummary(trechos);
   doc.setTextColor(0, 0, 0);
-  const cardY = 35;
+  const cardY = 41;
   const cards = [
     { label: "Registros", value: String(summary.count) },
     { label: "Total Litros", value: `${summary.totalLitros.toLocaleString("pt-BR", { minimumFractionDigits: 1 })} L` },
@@ -142,7 +174,7 @@ export async function generateFuelReportPDF(
     doc.text(card.value, x + (cardW - 4) / 2, cardY + 14, { align: "center" });
   });
 
-  // ── Table ────────────────────────────────────────────────────────────────
+  // ── Table ─────────────────────────────────────────────────────────────────
   const rows = buildReportRows(trechos, getVehicleName, !vehicleId);
   const head = vehicleId
     ? [["Data", "KM Inicial", "KM Final", "Distância", "Litros", "Valor (R$)", "Consumo", "Classificação", "Posto"]]
@@ -156,17 +188,17 @@ export async function generateFuelReportPDF(
   autoTable(doc, {
     head,
     body,
-    startY: 58,
+    startY: 64,
     styles: { fontSize: 7.5, cellPadding: 2.5 },
     headStyles: { fillColor: [16, 120, 60], textColor: [255, 255, 255], fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 250, 247] },
     columnStyles: {
-      [vehicleId ? 0 : 1]: { halign: "center" }, // data
-      [vehicleId ? 3 : 4]: { halign: "right" },  // distancia
-      [vehicleId ? 4 : 5]: { halign: "right" },  // litros
-      [vehicleId ? 5 : 6]: { halign: "right" },  // valor
-      [vehicleId ? 6 : 7]: { halign: "center" }, // consumo
-      [vehicleId ? 7 : 8]: { halign: "center" }, // classificacao
+      [vehicleId ? 0 : 1]: { halign: "center" },
+      [vehicleId ? 3 : 4]: { halign: "right" },
+      [vehicleId ? 4 : 5]: { halign: "right" },
+      [vehicleId ? 5 : 6]: { halign: "right" },
+      [vehicleId ? 6 : 7]: { halign: "center" },
+      [vehicleId ? 7 : 8]: { halign: "center" },
     },
     didDrawPage: (d: any) => {
       const pageCount = doc.getNumberOfPages();
@@ -196,9 +228,13 @@ export async function generateFuelReportExcel(
   vehicles: VehicleInfo[],
   tenantName?: string,
   vehicleId?: string,
-  selectedMonth?: string
+  selectedMonth?: string,
+  company?: CompanyInfo
 ): Promise<void> {
   const XLSX = await import("xlsx");
+
+  const s = company?.settings;
+  const displayName = s?.company_name || tenantName || "";
 
   const getVehicleName = (id: string) => {
     const v = vehicles.find((v) => v.id === id);
@@ -219,7 +255,10 @@ export async function generateFuelReportExcel(
 
   const headerRows = [
     [vehicle ? `Relatório de Combustível — ${vehicle.license_plate}` : "Relatório de Combustível — Frota Completa"],
-    tenantName ? [`Empresa: ${tenantName}`] : [],
+    displayName ? [`Empresa: ${displayName}`] : [],
+    s?.cnpj ? [`CNPJ: ${formatCNPJ(s.cnpj)}`] : [],
+    s?.phone ? [`Telefone: ${formatPhone(s.phone)}`] : [],
+    s?.email ? [`E-mail: ${s.email}`] : [],
     [`Período: ${periodLabel}`],
     [`Gerado em: ${new Date().toLocaleString("pt-BR")}`],
     [],

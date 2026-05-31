@@ -3,14 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { useMaintenanceRecords } from "../hooks/useMaintenanceRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } from "lucide-react";
 import { generateMaintenanceOS } from "../services/documentGenerator";
+import { urlToDataURL } from "../services/companySettingsHelper";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Maintenance() {
     const { user, signOut, tenant } = useAuth();
+    const { settings: companySettings } = useCompanySettings();
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
     const { records, deleteRecord, refetch } = useMaintenanceRecords(selectedVehicleId);
     const { vehicles } = useVehicles();
@@ -55,6 +58,9 @@ export function Maintenance() {
         }
 
         try {
+            const logoDataUrl = companySettings?.logo_url
+                ? await urlToDataURL(companySettings.logo_url)
+                : null;
             await generateMaintenanceOS({
                 id: record.id,
                 vehiclePlate: v.license_plate,
@@ -64,7 +70,8 @@ export function Maintenance() {
                 description: record.description || "",
                 parts: record.parts || [],
                 totalValue: record.value_brl || 0,
-                tenantName: tenant?.name
+                tenantName: tenant?.name,
+                company: { settings: companySettings, logoDataUrl },
             });
         } catch (error) {
             console.error("Failed to generate OS:", error);

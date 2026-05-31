@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import {
     User, Lock, Building2, Save,
     Users, UserPlus, X, Eye, EyeOff,
-    AlertCircle, CheckCircle2, Truck
+    AlertCircle, CheckCircle2, Truck,
+    Upload, Image as ImageIcon, Loader2, Trash2,
+    MapPin, Phone, Mail, FileText
 } from "lucide-react";
 
 interface TenantUser {
@@ -17,16 +20,140 @@ interface TenantUser {
 
 type AlertMsg = { type: "success" | "error"; text: string } | null;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function maskCNPJ(v: string) {
+    return v.replace(/\D/g, "")
+        .replace(/^(\d{2})(\d)/, "$1.$2")
+        .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+        .replace(/\.(\d{3})(\d)/, ".$1/$2")
+        .replace(/(\d{4})(\d)/, "$1-$2")
+        .slice(0, 18);
+}
+function maskPhone(v: string) {
+    return v.replace(/\D/g, "")
+        .replace(/^(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{5})(\d{4})$/, "$1-$2")
+        .slice(0, 15);
+}
+function maskCEP(v: string) {
+    return v.replace(/\D/g, "")
+        .replace(/^(\d{5})(\d)/, "$1-$2")
+        .slice(0, 9);
+}
+
 export function Settings() {
     const { user, tenant } = useAuth();
     const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
+    // ── Company Settings ──
+    const {
+        settings, loading: settingsLoading, saving, uploadingLogo,
+        error: settingsError, save, uploadLogo, removeLogo, fetchAddress
+    } = useCompanySettings();
+
+    const [companyName, setCompanyName] = useState("");
+    const [cnpj, setCnpj] = useState("");
+    const [cep, setCep] = useState("");
+    const [street, setStreet] = useState("");
+    const [number, setNumber] = useState("");
+    const [neighborhood, setNeighborhood] = useState("");
+    const [city, setCity] = useState("");
+    const stateField = useState("");
+    const [stateVal, setStateVal] = stateField;
+    const [phone, setPhone] = useState("");
+    const [email, setEmail] = useState("");
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [companyAlert, setCompanyAlert] = useState<AlertMsg>(null);
+    const [fetchingCep, setFetchingCep] = useState(false);
+    const logoInputRef = useRef<HTMLInputElement>(null);
+
+    // Populate form when settings load
+    useEffect(() => {
+        if (settings) {
+            setCompanyName(settings.company_name || "");
+            setCnpj(settings.cnpj || "");
+            setCep(settings.cep || "");
+            setStreet(settings.street || "");
+            setNumber(settings.number || "");
+            setNeighborhood(settings.neighborhood || "");
+            setCity(settings.city || "");
+            setStateVal(settings.state || "");
+            setPhone(settings.phone || "");
+            setEmail(settings.email || "");
+            setLogoPreview(settings.logo_url || null);
+        }
+    }, [settings]);
+
+    async function handleCepBlur() {
+        const cleaned = cep.replace(/\D/g, "");
+        if (cleaned.length !== 8) return;
+        setFetchingCep(true);
+        const addr = await fetchAddress(cleaned);
+        if (addr) {
+            setStreet(addr.street || "");
+            setNeighborhood(addr.neighborhood || "");
+            setCity(addr.city || "");
+            setStateVal(addr.state || "");
+        }
+        setFetchingCep(false);
+    }
+
+    async function handleSaveCompany(e: React.FormEvent) {
+        e.preventDefault();
+        setCompanyAlert(null);
+        const ok = await save({
+            company_name: companyName,
+            cnpj: cnpj.replace(/\D/g, ""),
+            cep: cep.replace(/\D/g, ""),
+            street, number, neighborhood, city,
+            state: stateVal, phone: phone.replace(/\D/g, ""), email,
+        });
+        if (ok) {
+            setCompanyAlert({ type: "success", text: "Configurações salvas com sucesso!" });
+            setTimeout(() => setCompanyAlert(null), 3000);
+        } else {
+            setCompanyAlert({ type: "error", text: settingsError || "Erro ao salvar" });
+        }
+    }
+
+    async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            setCompanyAlert({ type: "error", text: "A logo deve ter no máximo 2MB" });
+            return;
+        }
+        // Preview local
+        const reader = new FileReader();
+        reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+        reader.readAsDataURL(file);
+        // Upload
+        const url = await uploadLogo(file);
+        if (url) {
+            setLogoPreview(url);
+            setCompanyAlert({ type: "success", text: "Logo atualizada com sucesso!" });
+            setTimeout(() => setCompanyAlert(null), 3000);
+        } else {
+            setCompanyAlert({ type: "error", text: settingsError || "Erro ao fazer upload" });
+        }
+    }
+
+    async function handleRemoveLogo() {
+        const ok = await removeLogo();
+        if (ok) {
+            setLogoPreview(null);
+            setCompanyAlert({ type: "success", text: "Logo removida com sucesso!" });
+            setTimeout(() => setCompanyAlert(null), 3000);
+        }
+    }
+
+    // ── Password ──
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [pwLoading, setPwLoading] = useState(false);
     const [pwMessage, setPwMessage] = useState<AlertMsg>(null);
 
-    // User management
+    // ── User management ──
     const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [showUserModal, setShowUserModal] = useState(false);
@@ -132,7 +259,8 @@ export function Settings() {
             </header>
 
             <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-                {/* Perfil */}
+
+                {/* ── Perfil ── */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="p-6 border-b border-gray-200 bg-gray-50">
                         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -171,7 +299,235 @@ export function Settings() {
                     </div>
                 </div>
 
-                {/* Usuários da Empresa — somente Admin */}
+                {/* ── Dados da Empresa — somente Admin ── */}
+                {isAdmin && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-6 border-b border-gray-200 bg-gray-50">
+                            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-blue-600" /> Dados da Empresa
+                            </h2>
+                            <p className="text-sm text-gray-500 mt-1">Essas informações aparecem no cabeçalho de todos os relatórios e PDFs gerados.</p>
+                        </div>
+
+                        {settingsLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSaveCompany} className="p-6 space-y-6">
+
+                                {/* Logo upload */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        Logo da Empresa
+                                    </label>
+                                    <div className="flex items-start gap-5">
+                                        {/* Preview */}
+                                        <div className="flex-shrink-0 w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
+                                            {uploadingLogo ? (
+                                                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                                            ) : logoPreview ? (
+                                                <img
+                                                    src={logoPreview}
+                                                    alt="Logo da empresa"
+                                                    className="w-full h-full object-contain p-1"
+                                                />
+                                            ) : (
+                                                <ImageIcon className="w-8 h-8 text-gray-300" />
+                                            )}
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-2 justify-center">
+                                            <input
+                                                ref={logoInputRef}
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                className="hidden"
+                                                onChange={handleLogoChange}
+                                                id="logo-upload"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => logoInputRef.current?.click()}
+                                                disabled={uploadingLogo}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                {logoPreview ? "Alterar Logo" : "Enviar Logo"}
+                                            </button>
+                                            {logoPreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveLogo}
+                                                    disabled={uploadingLogo}
+                                                    className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm font-medium transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    Remover
+                                                </button>
+                                            )}
+                                            <p className="text-xs text-gray-400">PNG, JPG ou WEBP. Máx 2MB.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-100" />
+
+                                {/* Identificação */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <FileText className="w-4 h-4 inline mr-1" />Nome da Transportadora
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={companyName}
+                                            onChange={(e) => setCompanyName(e.target.value)}
+                                            placeholder="Ex: Transportadora Silva Ltda"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+                                        <input
+                                            type="text"
+                                            value={maskCNPJ(cnpj)}
+                                            onChange={(e) => setCnpj(e.target.value)}
+                                            placeholder="00.000.000/0000-00"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <Phone className="w-4 h-4 inline mr-1" />Telefone / WhatsApp
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={maskPhone(phone)}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            placeholder="(00) 00000-0000"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            <Mail className="w-4 h-4 inline mr-1" />E-mail
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="contato@transportadora.com.br"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-100" />
+
+                                {/* Endereço */}
+                                <div>
+                                    <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1 mb-3">
+                                        <MapPin className="w-4 h-4 text-blue-500" /> Endereço
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={maskCEP(cep)}
+                                                    onChange={(e) => setCep(e.target.value)}
+                                                    onBlur={handleCepBlur}
+                                                    placeholder="00000-000"
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm pr-8"
+                                                />
+                                                {fetchingCep && (
+                                                    <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-blue-500" />
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-400 mt-1">Auto-preenchimento via ViaCEP</p>
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Rua / Logradouro</label>
+                                            <input
+                                                type="text"
+                                                value={street}
+                                                onChange={(e) => setStreet(e.target.value)}
+                                                placeholder="Rua das Transportadoras"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                                            <input
+                                                type="text"
+                                                value={number}
+                                                onChange={(e) => setNumber(e.target.value)}
+                                                placeholder="123"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
+                                            <input
+                                                type="text"
+                                                value={neighborhood}
+                                                onChange={(e) => setNeighborhood(e.target.value)}
+                                                placeholder="Centro"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                                            <input
+                                                type="text"
+                                                value={city}
+                                                onChange={(e) => setCity(e.target.value)}
+                                                placeholder="São Paulo"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            />
+                                        </div>
+                                        <div className="md:col-span-1" style={{ maxWidth: 80 }}>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">UF</label>
+                                            <input
+                                                type="text"
+                                                maxLength={2}
+                                                value={stateVal.toUpperCase()}
+                                                onChange={(e) => setStateVal(e.target.value)}
+                                                placeholder="SP"
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm uppercase"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Alert */}
+                                {companyAlert && (
+                                    <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${companyAlert.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                                        {companyAlert.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                                        {companyAlert.text}
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                                    >
+                                        {saving
+                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                            : <Save className="w-4 h-4" />}
+                                        {saving ? "Salvando..." : "Salvar Configurações"}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                )}
+
+                {/* ── Usuários da Empresa — somente Admin ── */}
                 {isAdmin && (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="p-6 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -212,7 +568,7 @@ export function Settings() {
                     </div>
                 )}
 
-                {/* Segurança */}
+                {/* ── Segurança ── */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="p-6 border-b border-gray-200 bg-gray-50">
                         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -258,7 +614,7 @@ export function Settings() {
                 </div>
             </main>
 
-            {/* Modal Novo Usuário */}
+            {/* ── Modal Novo Usuário ── */}
             {showUserModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md">

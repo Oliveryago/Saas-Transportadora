@@ -2,7 +2,9 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useReportData, type ReportType } from "../hooks/useReportData";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import { exportToPDF, exportToExcel, formatBRL, formatDate } from "../services/reportExporter";
+import { urlToDataURL } from "../services/companySettingsHelper";
 import {
   ArrowLeft, FileText, FileSpreadsheet, Search,
   Truck, Fuel, Wrench, Users, DollarSign, BarChart3, Loader2
@@ -54,6 +56,7 @@ const PIE_COLORS = ["#22c55e", "#f97316", "#6366f1", "#06b6d4", "#eab308", "#8b5
 export function Reports() {
   const { tenant } = useAuth();
   const navigate = useNavigate();
+  const { settings: companySettings } = useCompanySettings();
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -85,9 +88,17 @@ export function Reports() {
     if (!selectedReport || data.length === 0) return;
     const config = REPORT_CONFIGS[selectedReport];
     const cols = getColumns(selectedReport);
+    const logoDataUrl = companySettings?.logo_url
+      ? await urlToDataURL(companySettings.logo_url)
+      : null;
     await exportToPDF(
       { columns: cols, rows: formatRows(selectedReport, data) },
-      { title: config.title, companyName: tenant?.name, period: periodLabel }
+      {
+        title: config.title,
+        company: { settings: companySettings, logoDataUrl },
+        companyName: tenant?.name,
+        period: periodLabel,
+      }
     );
   }
 
@@ -97,7 +108,12 @@ export function Reports() {
     const cols = getColumns(selectedReport);
     await exportToExcel(
       { columns: cols, rows: formatRows(selectedReport, data) },
-      { title: config.title, companyName: tenant?.name, period: periodLabel }
+      {
+        title: config.title,
+        company: { settings: companySettings },
+        companyName: tenant?.name,
+        period: periodLabel,
+      }
     );
   }
 

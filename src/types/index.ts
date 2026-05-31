@@ -310,3 +310,21 @@ export interface Driver {
   created_at: string;
   updated_at: string;
 }
+
+export interface CompanySettings {
+  id: string;
+  tenant_id: string;
+  company_name?: string;
+  cnpj?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string;
+  created_at: string;
+  updated_at: string;
+}

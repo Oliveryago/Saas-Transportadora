@@ -3,16 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { useVehicles } from "../hooks/useVehicles";
 import { useImplements } from "../hooks/useImplements";
 import { useAuth } from "../contexts/AuthContext";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import { Plus, LogOut, ArrowLeft, Trash2, Edit2, FileText, Loader2 } from "lucide-react";
 import VehicleModal from "../components/vehicles/VehicleModal";
 import ImplementModal from "../components/implements/ImplementModal";
 import { IMPLEMENT_TYPE_LABELS } from "../types";
 import type { Vehicle, Implement } from "../types";
 import { generateVehicleSheet } from "../services/documentGenerator";
+import { urlToDataURL } from "../services/companySettingsHelper";
 import { supabase } from "../lib/supabase";
 
 export function Fleet() {
   const { user, tenant, signOut } = useAuth();
+  const { settings: companySettings } = useCompanySettings();
   const { vehicles, deleteVehicle } = useVehicles();
   const { implements: implements_, deleteImplement } = useImplements();
   const navigate = useNavigate();
@@ -80,12 +83,17 @@ export function Fleet() {
          qrCodeDataURL = canvas.toDataURL("image/png");
       }
 
+      const logoDataUrl = companySettings?.logo_url
+        ? await urlToDataURL(companySettings.logo_url)
+        : null;
+
       await generateVehicleSheet({
         plate: vehicle.license_plate,
         model: vehicle.model,
         year: vehicle.year || new Date().getFullYear(),
         active: vehicle.active,
         tenantName: tenant?.name,
+        company: { settings: companySettings, logoDataUrl },
         qrCodeDataURL,
         stats: {
           totalKm: vehicle.current_km || 0,

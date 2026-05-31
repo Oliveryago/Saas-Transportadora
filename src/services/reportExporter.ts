@@ -1,7 +1,16 @@
 import { formatLocalDate } from "../lib/utils/date";
+import { buildAddressLine, formatCNPJ, formatPhone } from "./companySettingsHelper";
+import type { CompanySettings } from "../types";
+
+export interface CompanyInfo {
+  settings?: CompanySettings | null;
+  logoDataUrl?: string | null;
+}
 
 interface ExportOptions {
   title: string;
+  company?: CompanyInfo;
+  /** @deprecated use company.settings.company_name instead — kept for backwards compat */
   companyName?: string;
   period?: string;
   generatedAt?: string;
@@ -19,6 +28,98 @@ interface ExportData {
 }
 
 /**
+ * Renders the PDF header block with logo + company info.
+ * Returns the Y position after the header.
+ */
+function renderPDFHeader(
+  doc: any,
+  title: string,
+  options: ExportOptions
+): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const s = options.company?.settings;
+  const logoDataUrl = options.company?.logoDataUrl;
+  const name = s?.company_name || options.companyName || "";
+  const now = options.generatedAt || new Date().toLocaleString("pt-BR");
+
+  let y = 15;
+  let leftX = 20;
+
+  // ── Logo ───────────────────────────────────────────────────────────────────
+  if (logoDataUrl) {
+    try {
+      const logoSize = 18;
+      doc.addImage(logoDataUrl, "PNG", leftX, y - 4, logoSize, logoSize);
+      leftX = leftX + logoSize + 5;
+    } catch {
+      // ignore if logo can't be rendered
+    }
+  }
+
+  // ── Title ─────────────────────────────────────────────────────────────────
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 138);
+  doc.text(title, pageWidth / 2, y, { align: "center" });
+  y += 8;
+
+  // ── Company Name ──────────────────────────────────────────────────────────
+  if (name) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(name, pageWidth / 2, y, { align: "center" });
+    y += 6;
+  }
+
+  // ── Company Details ───────────────────────────────────────────────────────
+  if (s) {
+    const details: string[] = [];
+    if (s.cnpj) details.push(`CNPJ: ${formatCNPJ(s.cnpj)}`);
+    if (s.phone) details.push(`Tel: ${formatPhone(s.phone)}`);
+    if (s.email) details.push(s.email);
+    const addressLine = buildAddressLine(s);
+
+    if (details.length > 0) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text(details.join("   |   "), pageWidth / 2, y, { align: "center" });
+      y += 5;
+    }
+    if (addressLine) {
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(130);
+      doc.text(addressLine, pageWidth / 2, y, { align: "center" });
+      y += 5;
+    }
+  }
+
+  // ── Divider ───────────────────────────────────────────────────────────────
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.5);
+  doc.line(20, y, pageWidth - 20, y);
+  y += 4;
+
+  // ── Period & Generated ────────────────────────────────────────────────────
+  if (options.period) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80);
+    doc.text(`Período: ${options.period}`, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(150);
+  doc.text(`Gerado em: ${now}`, pageWidth / 2, y, { align: "center" });
+  y += 6;
+
+  return y;
+}
+
+/**
  * Exporta dados para PDF usando jsPDF + autoTable (lazy loaded)
  */
 export async function exportToPDF(
@@ -30,33 +131,13 @@ export async function exportToPDF(
 
   const doc = new jsPDF({ orientation: "landscape" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const now = options.generatedAt || new Date().toLocaleString("pt-BR");
 
-  // Header
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text(options.title, pageWidth / 2, 20, { align: "center" });
-
-  if (options.companyName) {
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text(options.companyName, pageWidth / 2, 28, { align: "center" });
-  }
-
-  if (options.period) {
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Período: ${options.period}`, pageWidth / 2, 34, { align: "center" });
-  }
-
-  doc.setFontSize(8);
-  doc.setTextColor(150);
-  doc.text(`Gerado em: ${now}`, pageWidth / 2, 40, { align: "center" });
+  const startY = renderPDFHeader(doc, options.title, options);
 
   // Table
-  const headers = data.columns.map(c => c.header);
-  const body = data.rows.map(row =>
-    data.columns.map(col => {
+  const headers = data.columns.map((c) => c.header);
+  const body = data.rows.map((row) =>
+    data.columns.map((col) => {
       const val = row[col.dataKey];
       return val !== null && val !== undefined ? String(val) : "-";
     })
@@ -65,7 +146,7 @@ export async function exportToPDF(
   autoTable(doc, {
     head: [headers],
     body,
-    startY: 46,
+    startY,
     styles: {
       fontSize: 8,
       cellPadding: 3,
@@ -88,7 +169,6 @@ export async function exportToPDF(
       return acc;
     }, {} as Record<number, any>),
     didDrawPage: (d: any) => {
-      // Footer with page number
       const pageCount = doc.getNumberOfPages();
       doc.setFontSize(8);
       doc.setTextColor(150);
@@ -114,40 +194,37 @@ export async function exportToExcel(
   options: ExportOptions
 ): Promise<void> {
   const XLSX = await import("xlsx");
+  const s = options.company?.settings;
+  const name = s?.company_name || options.companyName || "";
 
-  // Create header info rows
   const infoRows: string[][] = [
     [options.title],
-    options.companyName ? [`Empresa: ${options.companyName}`] : [],
+    name ? [`Empresa: ${name}`] : [],
+    s?.cnpj ? [`CNPJ: ${formatCNPJ(s.cnpj)}`] : [],
+    s?.phone ? [`Telefone: ${formatPhone(s.phone)}`] : [],
+    s?.email ? [`E-mail: ${s.email}`] : [],
     options.period ? [`Período: ${options.period}`] : [],
     [`Gerado em: ${options.generatedAt || new Date().toLocaleString("pt-BR")}`],
-    [], // empty row separator
-  ].filter(r => r.length > 0);
+    [],
+  ].filter((r) => r.length > 0);
 
-  // Create data rows
-  const headers = data.columns.map(c => c.header);
-  const rows = data.rows.map(row =>
-    data.columns.map(col => {
+  const headers = data.columns.map((c) => c.header);
+  const rows = data.rows.map((row) =>
+    data.columns.map((col) => {
       const val = row[col.dataKey];
       return val !== null && val !== undefined ? val : "";
     })
   );
 
-  // Combine
   const sheetData = [...infoRows, headers, ...rows];
-
-  // Create workbook
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // Set column widths
-  ws["!cols"] = data.columns.map(col => ({
+  ws["!cols"] = data.columns.map((col) => ({
     wch: Math.max(col.header.length + 4, 15),
   }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Relatório");
 
-  // Download
   const fileName = `${options.title.replace(/\s+/g, "_").toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }

@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useFuelRecords } from "../hooks/useFuelRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
+import { useCompanySettings } from "../hooks/useCompanySettings";
 import {
   Plus, LogOut, ArrowLeft, Trash2, Edit2, Gauge, Info,
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2,
   Download
 } from "lucide-react";
 import { generateVoucher } from "../services/documentGenerator";
+import { urlToDataURL } from "../services/companySettingsHelper";
 import FuelModal from "../components/fuel/FuelModal";
 import { FuelReportModal } from "../components/fuel/FuelReportModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
@@ -44,6 +46,7 @@ const formatTimelineDate = (dateStr: string) => {
 
 export function Fuel() {
   const { user, tenant, signOut } = useAuth();
+  const { settings: companySettings } = useCompanySettings();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords(selectedVehicleId);
   const { vehicles } = useVehicles();
@@ -85,7 +88,13 @@ export function Fuel() {
         vehicleModel: v.model,
         value: trecho.valorTotal,
         details,
-        tenantName: tenant?.name
+        tenantName: tenant?.name,
+        company: {
+          settings: companySettings,
+          logoDataUrl: companySettings?.logo_url
+            ? await urlToDataURL(companySettings.logo_url)
+            : null,
+        },
       });
     } catch (error) {
       console.error("Error generating voucher:", error);
@@ -645,6 +654,7 @@ export function Fuel() {
           vehicles={vehicles}
           tenantName={tenant?.name}
           vehicleId={reportModal?.vehicleId}
+          company={{ settings: companySettings }}
         />
       </main>
     </div>
