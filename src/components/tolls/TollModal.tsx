@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTollRecords } from "../../hooks/useTollRecords";
 import type { TollRecord, Vehicle, User } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: TollRecord | null; vehicles: Vehicle[]; drivers: User[]; }
 
@@ -13,7 +14,7 @@ function TollModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
     const [city, setCity] = useState("");
     const [valueBrl, setValueBrl] = useState(0);
     const [trip, setTrip] = useState("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [notes, setNotes] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ function TollModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDriverId("");
             setUf(""); setCity(""); setValueBrl(0); setTrip("");
-            setDate(new Date().toISOString().split("T")[0]); setNotes("");
+            setDate(getLocalDateString()); setNotes("");
         }
         setError(null);
     }, [editingRecord, open, vehicles]);

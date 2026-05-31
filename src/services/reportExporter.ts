@@ -1,3 +1,5 @@
+import { formatLocalDate } from "../lib/utils/date";
+
 interface ExportOptions {
   title: string;
   companyName?: string;
@@ -161,5 +163,5 @@ export function formatBRL(value: number): string {
  * Formata data para pt-BR
  */
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("pt-BR");
+  return formatLocalDate(dateStr);
 }

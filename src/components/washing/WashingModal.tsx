@@ -4,6 +4,7 @@ import { useWashingRecords } from "../../hooks/useWashingRecords";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import type { WashingRecord, Vehicle, VehicleWashType, Driver } from "../../types";
 import { VEHICLE_WASH_TYPE_LABELS } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: WashingRecord | null; vehicles: Vehicle[]; drivers: Driver[]; }
 
@@ -13,7 +14,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
     const [vehicleId, setVehicleId] = useState("");
     const [driverId, setDriverId] = useState("");
     const [washPlace, setWashPlace] = useState("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [notes, setNotes] = useState("");
     const [services, setServices] = useState<{ type: VehicleWashType; price: number }[]>([{ type: "cavalo", price: 0 }]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -40,7 +41,7 @@ function WashingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
             }
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDriverId(""); setWashPlace("");
-            setDate(new Date().toISOString().split("T")[0]); setNotes("");
+            setDate(getLocalDateString()); setNotes("");
             setServices([{ type: "cavalo", price: 0 }]);
         }
         setError(null);

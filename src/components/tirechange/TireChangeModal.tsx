@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTireChanges } from "../../hooks/useTireChanges";
 import type { TireChange, Vehicle } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: TireChange | null; vehicles: Vehicle[]; }
 
@@ -16,7 +17,7 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
     const [valueBrl, setValueBrl] = useState(0);
     const [hasDiscount, setHasDiscount] = useState(false);
     const [discountValue, setDiscountValue] = useState(0);
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [notes, setNotes] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setBrand(""); setDimension(""); setQuantity(1);
             setKmAtChange(0); setNextChangeKm(0); setValueBrl(0); setHasDiscount(false); setDiscountValue(0);
-            setDate(new Date().toISOString().split("T")[0]); setNotes("");
+            setDate(getLocalDateString()); setNotes("");
         }
         setError(null);
     }, [editingRecord, open, vehicles]);

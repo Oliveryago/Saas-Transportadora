@@ -5,6 +5,7 @@ import { useVehicles } from "../hooks/useVehicles";
 import InsuranceModal from "../components/insurance/InsuranceModal";
 import type { InsuranceRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Insurance() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -15,8 +16,12 @@ export function Insurance() {
 
     const totalCost = useMemo(() => records.reduce((a, r) => a + (r.value_brl || 0), 0), [records]);
     const expiring = useMemo(() => {
-        const in30 = new Date(); in30.setDate(in30.getDate() + 30);
-        return records.filter((r) => r.expiration_date && new Date(r.expiration_date) <= in30).length;
+        const now = new Date();
+        const in30DaysMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+        return records.filter((r) => {
+            const parsedDate = parseLocalDate(r.expiration_date);
+            return parsedDate && parsedDate <= in30DaysMidnight;
+        }).length;
     }, [records]);
     const getVehicleName = (id: string) => { const v = vehicles.find((v) => v.id === id); return v ? `${v.license_plate} - ${v.model}` : id; };
 
@@ -43,15 +48,19 @@ export function Insurance() {
                     <div className="bg-white rounded-xl border overflow-hidden">
                         <table className="w-full"><thead className="bg-gray-50"><tr><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Veículo</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Seguradora</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Tipo</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Apólice</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Vencimento</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Valor</th><th className="px-4 py-3"></th></tr></thead>
                             <tbody className="divide-y">{records.map((r) => {
-                                const isExpiring = r.expiration_date && new Date(r.expiration_date) <= new Date(Date.now() + 30 * 86400000);
-                                const isExpired = r.expiration_date && new Date(r.expiration_date) < new Date();
+                                const parsedDate = parseLocalDate(r.expiration_date);
+                                const now = new Date();
+                                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                const in30DaysMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+                                const isExpiring = parsedDate && parsedDate <= in30DaysMidnight;
+                                const isExpired = parsedDate && parsedDate < todayMidnight;
                                 return (
                                     <tr key={r.id} className={`hover:bg-gray-50 ${isExpired ? "bg-red-50" : isExpiring ? "bg-amber-50" : ""}`}>
                                         <td className="px-4 py-3 text-sm">{getVehicleName(r.vehicle_id)}</td>
                                         <td className="px-4 py-3 text-sm">{r.insurer || "-"}</td>
                                         <td className="px-4 py-3 text-sm">{r.insurance_type || "-"}</td>
                                         <td className="px-4 py-3 text-sm">{r.policy_number || "-"}</td>
-                                        <td className="px-4 py-3 text-sm font-medium">{r.expiration_date ? (<span className={isExpired ? "text-red-600" : isExpiring ? "text-amber-600" : ""}>{new Date(r.expiration_date).toLocaleDateString("pt-BR")}</span>) : "-"}</td>
+                                        <td className="px-4 py-3 text-sm font-medium">{r.expiration_date ? (<span className={isExpired ? "text-red-600" : isExpiring ? "text-amber-600" : ""}>{formatLocalDate(r.expiration_date)}</span>) : "-"}</td>
                                         <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>
                                         <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
                                     </tr>

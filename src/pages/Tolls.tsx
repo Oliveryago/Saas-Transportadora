@@ -6,6 +6,7 @@ import { useDrivers } from "../hooks/useDrivers";
 import TollModal from "../components/tolls/TollModal";
 import type { TollRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate } from "../lib/utils/date";
 
 export function Tolls() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -47,7 +48,7 @@ export function Tolls() {
                                     <td className="px-4 py-3 text-sm">{getDriverName(r.driver_id)}</td>
                                     <td className="px-4 py-3 text-sm">{[r.uf, r.city].filter(Boolean).join(" - ") || "-"}</td>
                                     <td className="px-4 py-3 text-sm">{r.trip || "-"}</td>
-                                    <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
+                                    <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>
                                     <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
                                 </tr>

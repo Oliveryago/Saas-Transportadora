@@ -13,6 +13,7 @@ import FuelModal from "../components/fuel/FuelModal";
 import { FuelReportModal } from "../components/fuel/FuelReportModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { FuelRecord } from "../types";
+import { formatLocalDate } from "../lib/utils/date";
 
 interface TrechoData {
   recordId: string;
@@ -29,12 +30,16 @@ interface TrechoData {
   isFull: boolean;
 }
 
-const formatLocalDate = (dateStr: string) => {
+const formatTimelineDate = (dateStr: string) => {
   if (!dateStr) return "-";
-  // dateStr is YYYY-MM-DD
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  const dateOnly = dateStr.split("T")[0];
+  const parts = dateOnly.split("-").map(Number);
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  return new Date(dateStr).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
 export function Fuel() {
@@ -410,7 +415,7 @@ export function Fuel() {
                                   {/* Left: date and station */}
                                   <div>
                                     <p className="text-sm font-semibold text-gray-900">
-                                      {formatLocalDate(trecho.date)}
+                                      {formatTimelineDate(trecho.date)}
                                     </p>
                                     <p className="text-xs text-gray-400 mt-0.5">Posto: {trecho.posto}</p>
                                   </div>
@@ -561,7 +566,7 @@ export function Fuel() {
                     return (
                       <tr key={trecho.recordId} className="hover:bg-gray-50 transition">
                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">{getVehicleName(trecho.vehicleId)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{new Date(trecho.date).toLocaleDateString("pt-BR")}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{formatLocalDate(trecho.date)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 text-right">{trecho.isFirst ? "-" : trecho.kmInicial.toLocaleString("pt-BR")}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">{trecho.kmFinal.toLocaleString("pt-BR")}</td>
                         <td className="px-4 py-3 text-sm text-right">

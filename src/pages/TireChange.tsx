@@ -5,6 +5,7 @@ import { useVehicles } from "../hooks/useVehicles";
 import TireChangeModal from "../components/tirechange/TireChangeModal";
 import type { TireChange } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate } from "../lib/utils/date";
 
 export function TireChangePage() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -46,7 +47,7 @@ export function TireChangePage() {
                                     <td className="px-4 py-3 text-sm">{r.dimension || "-"}</td>
                                     <td className="px-4 py-3 text-sm">{r.quantity}</td>
                                     <td className="px-4 py-3 text-sm">{r.km_at_change ? r.km_at_change.toLocaleString("pt-BR") : "-"}</td>
-                                    <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
+                                    <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}{r.has_discount && <span className="ml-1 text-xs text-emerald-600">(-desc)</span>}</td>
                                     <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
                                 </tr>

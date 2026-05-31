@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import type { FuelRecord, Vehicle, FuelType } from "../../types";
 import { FUEL_TYPE_LABELS } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface FuelModalProps {
   open: boolean;
@@ -45,9 +46,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   useEffect(() => {
     if (editingRecord) {
       setVehicleId(editingRecord.vehicle_id);
-      const today = new Date();
-      const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      setDate(editingRecord.date || editingRecord.created_at?.split("T")[0] || localToday);
+      setDate(editingRecord.date || editingRecord.created_at?.split("T")[0] || getLocalDateString());
       setKmDigital(editingRecord.km_digital);
       setLiters(editingRecord.liters);
       setFuelType((editingRecord.fuel_type as FuelType) || "diesel_s500");
@@ -61,9 +60,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setIsFullTank(editingRecord.is_full_tank ?? true);
     } else {
       setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
-      const today = new Date();
-      const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      setDate(localToday);
+      setDate(getLocalDateString());
       setKmDigital(0);
       setLiters(0);
       setFuelType("diesel_s500");
@@ -91,7 +88,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
     try {
       const data = {
         vehicle_id: vehicleId,
-        date: date || new Date().toLocaleDateString('sv-SE'), // sv-SE format is YYYY-MM-DD
+        date: date || getLocalDateString(),
         km_digital: kmDigital,
         liters,
         fuel_type: fuelType,

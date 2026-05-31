@@ -4,6 +4,7 @@ import { useRotationRecords } from "../hooks/useRotationRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import RotationModal from "../components/rotation/RotationModal";
 import type { RotationRecord } from "../types";
+import { formatLocalDate } from "../lib/utils/date";
 
 export function Rotation() {
     const { records, loading, deleteRecord } = useRotationRecords();
@@ -34,7 +35,7 @@ export function Rotation() {
                             <tbody className="divide-y">{records.map((r) => (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 text-sm">{getVehicleName(r.vehicle_id)}</td>
-                                    <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
+                                    <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm">{r.current_odometer ? r.current_odometer.toLocaleString("pt-BR") : "-"}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.next_rotation_km ? r.next_rotation_km.toLocaleString("pt-BR") : "-"}</td>
                                     <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-[200px]">{r.notes || "-"}</td>

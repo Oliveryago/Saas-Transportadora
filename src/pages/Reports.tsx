@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Skeleton } from "../components/shared/SkeletonLoader";
+import { getLocalDateString } from "../lib/utils/date";
 
 const REPORT_CONFIGS: Record<ReportType, {
   title: string;
@@ -57,9 +58,9 @@ export function Reports() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
-    return d.toISOString().slice(0, 10);
+    return getLocalDateString(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(() => getLocalDateString());
   const [vehicleFilter, setVehicleFilter] = useState("");
   const [driverFilter, setDriverFilter] = useState("");
 

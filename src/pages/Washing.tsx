@@ -7,6 +7,7 @@ import WashingModal from "../components/washing/WashingModal";
 import type { WashingRecord, VehicleWashType } from "../types";
 import { VEHICLE_WASH_TYPE_LABELS } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Washing() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -33,7 +34,7 @@ export function Washing() {
             <main className="max-w-7xl mx-auto px-6 py-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Droplets className="w-8 h-8 text-cyan-500" /><div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold">{records.length}</p></div></div></div>
-                    <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Este mês</p><p className="text-2xl font-bold">{records.filter(r => new Date(r.date).getMonth() === new Date().getMonth()).length}</p></div></div></div>
+                    <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Este mês</p><p className="text-2xl font-bold">{records.filter(r => { const d = parseLocalDate(r.date); return d && d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear(); }).length}</p></div></div></div>
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><DollarSign className="w-8 h-8 text-emerald-500" /><div><p className="text-sm text-gray-500">Custo total</p><p className="text-2xl font-bold">R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></div></div></div>
                 </div>
                 {loading ? <p className="text-gray-500 text-center py-12">Carregando...</p> : records.length === 0 ? (
@@ -60,7 +61,7 @@ export function Washing() {
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-sm">{r.wash_place || "-"}</td>
-                                    <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
+                                    <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>
                                     <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
                                 </tr>

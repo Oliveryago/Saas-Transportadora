@@ -4,6 +4,7 @@ import { useMaintenanceRecords } from "../../hooks/useMaintenanceRecords";
 import { useVehicles } from "../../hooks/useVehicles";
 import { useImplements } from "../../hooks/useImplements";
 import type { MaintenanceRecord } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface MaintenanceModalProps {
     open: boolean;
@@ -20,7 +21,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
     const [description, setDescription] = useState("");
     const [valueBrl, setValueBrl] = useState(0);
     const [km, setKm] = useState(0);
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [vehicleId, setVehicleId] = useState("");
     const [implementId, setImplementId] = useState("");
     const [parts, setParts] = useState<{ name: string; cost?: number }[]>([]);
@@ -44,7 +45,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
             setDescription("");
             setValueBrl(0);
             setKm(0);
-            setDate(new Date().toISOString().split("T")[0]);
+            setDate(getLocalDateString());
             setVehicleId("");
             setImplementId("");
             setParts([]);

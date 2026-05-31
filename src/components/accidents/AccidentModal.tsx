@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useAccidentRecords } from "../../hooks/useAccidentRecords";
 import type { AccidentRecord, Vehicle, User } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: AccidentRecord | null; vehicles: Vehicle[]; drivers: User[]; }
 
@@ -10,7 +11,7 @@ function AccidentModal({ open, onClose, editingRecord, vehicles, drivers }: Prop
     const [vehicleId, setVehicleId] = useState("");
     const [driverId, setDriverId] = useState("");
     const [description, setDescription] = useState("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [reportNumber, setReportNumber] = useState("");
     const [uf, setUf] = useState("");
     const [city, setCity] = useState("");
@@ -26,7 +27,7 @@ function AccidentModal({ open, onClose, editingRecord, vehicles, drivers }: Prop
             setCity(editingRecord.city || ""); setNotes(editingRecord.notes || "");
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDriverId("");
-            setDescription(""); setDate(new Date().toISOString().split("T")[0]);
+            setDescription(""); setDate(getLocalDateString());
             setReportNumber(""); setUf(""); setCity(""); setNotes("");
         }
         setError(null);

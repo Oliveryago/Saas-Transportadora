@@ -6,6 +6,7 @@ import { useDrivers } from "../hooks/useDrivers";
 import AccidentModal from "../components/accidents/AccidentModal";
 import type { AccidentRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Accidents() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -32,7 +33,7 @@ export function Accidents() {
             <main className="max-w-7xl mx-auto px-6 py-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><AlertOctagon className="w-8 h-8 text-red-500" /><div><p className="text-sm text-gray-500">Total sinistros</p><p className="text-2xl font-bold">{records.length}</p></div></div></div>
-                    <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Este ano</p><p className="text-2xl font-bold">{records.filter(r => new Date(r.date).getFullYear() === new Date().getFullYear()).length}</p></div></div></div>
+                    <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Este ano</p><p className="text-2xl font-bold">{records.filter(r => { const d = parseLocalDate(r.date); return d && d.getFullYear() === new Date().getFullYear(); }).length}</p></div></div></div>
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><MapPin className="w-8 h-8 text-amber-500" /><div><p className="text-sm text-gray-500">Estados</p><p className="text-2xl font-bold">{new Set(records.map(r => r.uf).filter(Boolean)).size}</p></div></div></div>
                 </div>
                 {loading ? <p className="text-gray-500 text-center py-12">Carregando...</p> : records.length === 0 ? (
@@ -42,7 +43,7 @@ export function Accidents() {
                         <table className="w-full"><thead className="bg-gray-50"><tr><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Data</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Veículo</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Motorista</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Local</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Nº BO</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Descrição</th><th className="px-4 py-3"></th></tr></thead>
                             <tbody className="divide-y">{records.map((r) => (
                                 <tr key={r.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm">{new Date(r.date).toLocaleDateString("pt-BR")}</td>
+                                    <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm">{getVehicleName(r.vehicle_id)}</td>
                                     <td className="px-4 py-3 text-sm">{getDriverName(r.driver_id)}</td>
                                     <td className="px-4 py-3 text-sm">{[r.city, r.uf].filter(Boolean).join(" - ") || "-"}</td>

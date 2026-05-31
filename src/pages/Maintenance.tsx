@@ -7,6 +7,7 @@ import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } fro
 import { generateMaintenanceOS } from "../services/documentGenerator";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Maintenance() {
     const { user, signOut, tenant } = useAuth();
@@ -31,9 +32,10 @@ export function Maintenance() {
 
     const totalGasto = records.reduce((sum, r) => sum + Number(r.value_brl || 0), 0);
     const thisMonth = records.filter((r) => {
-        const d = new Date(r.date);
+        const parsed = parseLocalDate(r.date);
+        if (!parsed) return false;
         const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return parsed.getMonth() === now.getMonth() && parsed.getFullYear() === now.getFullYear();
     });
 
     function handleModalClose() {
@@ -147,7 +149,7 @@ export function Maintenance() {
                                     {records.map((record) => (
                                         <tr key={record.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 text-sm text-gray-900">
-                                                {new Date(record.date).toLocaleDateString("pt-BR")}
+                                                {formatLocalDate(record.date)}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">

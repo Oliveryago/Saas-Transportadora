@@ -4,6 +4,7 @@ import { useOilChangeAlerts } from "../../hooks/useOilChangeAlerts";
 import { useVehicles } from "../../hooks/useVehicles";
 import type { OilChangeAlert, OilType } from "../../types";
 import { OIL_TYPE_LABELS } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface OilChangeModalProps {
     open: boolean;
@@ -21,7 +22,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
     const [kmInterval, setKmInterval] = useState(15000);
     const [daysInterval, setDaysInterval] = useState(180);
     const [lastChangeKm, setLastChangeKm] = useState(0);
-    const [lastChangeDate, setLastChangeDate] = useState(new Date().toISOString().split("T")[0]);
+    const [lastChangeDate, setLastChangeDate] = useState(getLocalDateString());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
             setKmInterval(editingAlert.km_interval || 15000);
             setDaysInterval(editingAlert.days_interval || 180);
             setLastChangeKm(editingAlert.last_change_km || 0);
-            setLastChangeDate(editingAlert.last_change_date || new Date().toISOString().split("T")[0]);
+            setLastChangeDate(editingAlert.last_change_date || getLocalDateString());
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
             setOilType("motor");
@@ -41,7 +42,7 @@ function OilChangeModal({ open, onClose, editingAlert }: OilChangeModalProps) {
             setKmInterval(15000);
             setDaysInterval(180);
             setLastChangeKm(0);
-            setLastChangeDate(new Date().toISOString().split("T")[0]);
+            setLastChangeDate(getLocalDateString());
         }
         setError(null);
     }, [editingAlert, vehicles, open]);

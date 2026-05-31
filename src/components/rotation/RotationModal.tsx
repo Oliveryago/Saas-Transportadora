@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRotationRecords } from "../../hooks/useRotationRecords";
 import type { RotationRecord, Vehicle } from "../../types";
+import { getLocalDateString } from "../../lib/utils/date";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: RotationRecord | null; vehicles: Vehicle[]; }
 
 function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
     const { addRecord, updateRecord } = useRotationRecords();
     const [vehicleId, setVehicleId] = useState("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+    const [date, setDate] = useState(getLocalDateString());
     const [currentOdometer, setCurrentOdometer] = useState(0);
     const [nextRotationKm, setNextRotationKm] = useState(0);
     const [notes, setNotes] = useState("");
@@ -21,7 +22,7 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
             setCurrentOdometer(editingRecord.current_odometer || 0); setNextRotationKm(editingRecord.next_rotation_km || 0);
             setNotes(editingRecord.notes || "");
         } else {
-            setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDate(new Date().toISOString().split("T")[0]);
+            setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDate(getLocalDateString());
             setCurrentOdometer(0); setNextRotationKm(0); setNotes("");
         }
         setError(null);

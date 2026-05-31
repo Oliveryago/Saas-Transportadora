@@ -8,6 +8,7 @@ import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell, 
 import OilChangeModal from "../components/oilchange/OilChangeModal";
 import { OIL_TYPE_LABELS } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function OilChange() {
     const { user, signOut, tenant } = useAuth();
@@ -52,8 +53,11 @@ export function OilChange() {
         }
 
         if ((alert.alert_type === "date" || alert.alert_type === "both") && alert.last_change_date && alert.days_interval) {
-            const nextDate = new Date(new Date(alert.last_change_date).getTime() + alert.days_interval * 86400000);
-            parts.push(`até ${nextDate.toLocaleDateString("pt-BR")}`);
+            const parsed = parseLocalDate(alert.last_change_date);
+            if (parsed) {
+                const nextDate = new Date(parsed.getTime() + alert.days_interval * 86400000);
+                parts.push(`até ${formatLocalDate(nextDate)}`);
+            }
         }
 
         return parts.join(" | ") || "-";
