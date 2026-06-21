@@ -57,8 +57,8 @@ export function Fuel() {
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"timeline" | "table">("timeline");
   const [generatingVoucher, setGeneratingVoucher] = useState<string | null>(null);
-  // reportModal: null = closed, 'all' = frota geral, vehicleId = individual
   const [reportModal, setReportModal] = useState<{ vehicleId?: string } | null>(null);
+  const [simulatedKm, setSimulatedKm] = useState<Record<string, number>>({});
 
   async function handleGenerateVoucher(trecho: TrechoData) {
     setGeneratingVoucher(trecho.recordId);
@@ -361,7 +361,12 @@ export function Fuel() {
               if (tankCapacity > 0) {
                 const lastTrecho = trechos[trechos.length - 1];
                 const lastKm = lastTrecho ? lastTrecho.kmFinal : 0;
-                const currentKm = vehicle?.current_km || 0;
+                
+                // Usa o KM simulado ou o KM atual salvo no veículo
+                const currentKm = simulatedKm[vehicleId] !== undefined 
+                  ? simulatedKm[vehicleId] 
+                  : (vehicle?.current_km || 0);
+                  
                 const distanceSinceRefuel = Math.max(0, currentKm - lastKm);
                 
                 const avg = avgVehicle || 0;
@@ -445,6 +450,53 @@ export function Fuel() {
                   {/* Timeline trechos */}
                   {isExpanded && (
                     <div className="border-t px-5 pb-5">
+                      
+                      {/* SIMULADOR DE AUTONOMIA */}
+                      {tankCapacity > 0 && trechos.length > 0 && (
+                        <div className="mt-5 mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                          <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                            <Gauge className="w-4 h-4 text-indigo-600" />
+                            Simulador de Autonomia em Tempo Real
+                          </h4>
+                          <div className="flex flex-wrap items-end gap-6">
+                            <div>
+                              <label className="block text-xs font-semibold text-indigo-700 mb-1.5">
+                                KM Atual (Motorista na estrada)
+                              </label>
+                              <div className="relative">
+                                <input 
+                                  type="number" 
+                                  value={simulatedKm[vehicleId] !== undefined ? simulatedKm[vehicleId] : (vehicle?.current_km || "")} 
+                                  onChange={(e) => setSimulatedKm(prev => ({ ...prev, [vehicleId]: Number(e.target.value) }))}
+                                  className="pl-3 pr-10 py-2 border border-indigo-200 rounded-lg text-sm w-48 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm"
+                                  placeholder="Ex: 154000"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">KM</span>
+                              </div>
+                            </div>
+                            
+                            {simulatedKm[vehicleId] > 0 && simulatedKm[vehicleId] > (trechos[trechos.length - 1]?.kmFinal || 0) && (
+                              <div className="flex flex-wrap gap-6 bg-white px-4 py-2 rounded-lg border border-indigo-100 shadow-sm">
+                                <div>
+                                  <p className="text-[10px] text-indigo-500 uppercase font-bold">Rodou desde o posto</p>
+                                  <p className="text-sm font-bold text-gray-900">
+                                    {(simulatedKm[vehicleId] - trechos[trechos.length - 1].kmFinal).toLocaleString("pt-BR")} km
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-indigo-500 uppercase font-bold">Combustível Restante</p>
+                                  <p className="text-sm font-bold text-gray-900">{currentFuel.toFixed(1)} L</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-emerald-600 uppercase font-bold">Autonomia Restante</p>
+                                  <p className="text-sm font-bold text-emerald-600">~{remainingKm.toFixed(0)} km</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="relative">
                         {/* Vertical line */}
                         <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
