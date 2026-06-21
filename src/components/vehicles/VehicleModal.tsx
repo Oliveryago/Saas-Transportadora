@@ -19,6 +19,7 @@ export function VehicleModal({
   const [model, setModel] = useState("");
   const [year, setYear] = useState(new Date().getFullYear());
   const [currentKm, setCurrentKm] = useState(0);
+  const [tankCapacity, setTankCapacity] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,11 +29,13 @@ export function VehicleModal({
       setModel(editingVehicle.model);
       setYear(editingVehicle.year || new Date().getFullYear());
       setCurrentKm(editingVehicle.current_km);
+      setTankCapacity(editingVehicle.tank_capacity || "");
     } else {
       setLicensePlate("");
       setModel("");
       setYear(new Date().getFullYear());
       setCurrentKm(0);
+      setTankCapacity("");
     }
     setError(null);
   }, [editingVehicle, open]);
@@ -49,6 +52,7 @@ export function VehicleModal({
           model,
           year,
           current_km: currentKm,
+          tank_capacity: tankCapacity === "" ? null : Number(tankCapacity),
         });
       } else {
         await addVehicle({
@@ -56,6 +60,7 @@ export function VehicleModal({
           model,
           year,
           current_km: currentKm,
+          tank_capacity: tankCapacity === "" ? null : Number(tankCapacity),
           active: true,
         } as any);
       }
@@ -142,6 +147,23 @@ export function VehicleModal({
                 min="0"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Capacidade do Tanque (Litros)
+            </label>
+            <input
+              type="number"
+              value={tankCapacity}
+              onChange={(e) => setTankCapacity(e.target.value === "" ? "" : parseInt(e.target.value))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ex: 840"
+              min="0"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Usado para estimar o nível de combustível atual.
+            </p>
           </div>
 
           {error && (

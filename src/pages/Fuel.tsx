@@ -353,6 +353,25 @@ export function Fuel() {
               const avgVehicle = getVehicleAvgKmL(vehicleId);
               const isExpanded = expandedVehicle === vehicleId || Object.keys(trechosPerVehicle).length === 1;
 
+              const tankCapacity = vehicle?.tank_capacity || 0;
+              let currentFuel = 0;
+              let remainingKm = 0;
+              let fuelPercentage = 0;
+
+              if (tankCapacity > 0) {
+                const lastTrecho = trechos[trechos.length - 1];
+                const lastKm = lastTrecho ? lastTrecho.kmFinal : 0;
+                const currentKm = vehicle?.current_km || 0;
+                const distanceSinceRefuel = Math.max(0, currentKm - lastKm);
+                
+                const avg = avgVehicle || 0;
+                const consumed = avg > 0 ? distanceSinceRefuel / avg : 0;
+                
+                currentFuel = Math.max(0, tankCapacity - consumed);
+                fuelPercentage = Math.min(100, Math.max(0, (currentFuel / tankCapacity) * 100));
+                remainingKm = currentFuel * avg;
+              }
+
               return (
                 <div key={vehicleId} className="bg-white rounded-xl shadow-sm border overflow-hidden">
                   {/* Vehicle header */}
@@ -371,6 +390,26 @@ export function Fuel() {
                     </div>
 
                     <div className="flex items-center gap-6">
+                      {tankCapacity > 0 && (
+                        <div className="hidden lg:block w-40 text-right">
+                          <div className="flex justify-between items-end mb-1">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Nível do Tanque</span>
+                            <span className="text-xs font-bold text-gray-700">{currentFuel.toFixed(0)}L / {tankCapacity}L</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                fuelPercentage > 50 ? 'bg-emerald-500' : fuelPercentage > 20 ? 'bg-amber-500' : 'bg-red-500'
+                              }`} 
+                              style={{width: `${fuelPercentage}%`}}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-gray-400">Autonomia</span>
+                            <span className="text-xs font-semibold text-gray-600">~{remainingKm.toFixed(0)} km</span>
+                          </div>
+                        </div>
+                      )}
                       <div className="text-right hidden sm:block">
                         <p className="text-xs text-gray-400 uppercase">Abastecimentos</p>
                         <p className="font-bold text-gray-900">{trechos.length}</p>
@@ -383,7 +422,7 @@ export function Fuel() {
                             <span className={`w-2.5 h-2.5 rounded-full ${getConsumoBadge(avgVehicle).dot}`}></span>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-400">Aguardando dados</p>
+                          <p className="text-sm text-gray-400">Aguardando</p>
                         )}
                       </div>
                       {/* Individual vehicle report button */}

@@ -90,6 +90,7 @@ export interface Vehicle {
   model: string;
   year?: number;
   current_km: number;
+  tank_capacity?: number;
   active: boolean;
   created_at: string;
   updated_at: string;

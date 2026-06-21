@@ -18,7 +18,7 @@ export function useVehicles() {
 
       const { data, error: err } = await supabase
         .from("vehicles")
-        .select("id, tenant_id, license_plate, model, year, current_km, active, created_at, updated_at")
+        .select("id, tenant_id, license_plate, model, year, current_km, tank_capacity, active, created_at, updated_at")
         .eq("tenant_id", tenant.id)
         .order("created_at", { ascending: false });
 
