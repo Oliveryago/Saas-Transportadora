@@ -390,26 +390,28 @@ export function Fuel() {
                     </div>
 
                     <div className="flex items-center gap-6">
-                      {tankCapacity > 0 && (
-                        <div className="hidden lg:block w-40 text-right">
-                          <div className="flex justify-between items-end mb-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Nível do Tanque</span>
-                            <span className="text-xs font-bold text-gray-700">{currentFuel.toFixed(0)}L / {tankCapacity}L</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                fuelPercentage > 50 ? 'bg-emerald-500' : fuelPercentage > 20 ? 'bg-amber-500' : 'bg-red-500'
-                              }`} 
-                              style={{width: `${fuelPercentage}%`}}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-gray-400">Autonomia</span>
-                            <span className="text-xs font-semibold text-gray-600">~{remainingKm.toFixed(0)} km</span>
-                          </div>
+                      <div className="hidden lg:block w-40 text-right">
+                        <div className="flex justify-between items-end mb-1">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Nível do Tanque</span>
+                          <span className="text-xs font-bold text-gray-700">
+                            {tankCapacity > 0 ? `${currentFuel.toFixed(0)}L / ${tankCapacity}L` : "Sem litragem"}
+                          </span>
                         </div>
-                      )}
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              tankCapacity === 0 ? 'bg-gray-300' : fuelPercentage > 50 ? 'bg-emerald-500' : fuelPercentage > 20 ? 'bg-amber-500' : 'bg-red-500'
+                            }`} 
+                            style={{width: tankCapacity === 0 ? '100%' : `${fuelPercentage}%`}}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-gray-400">Autonomia</span>
+                          <span className="text-xs font-semibold text-gray-600">
+                            {tankCapacity > 0 ? `~${remainingKm.toFixed(0)} km` : "-"}
+                          </span>
+                        </div>
+                      </div>
                       <div className="text-right hidden sm:block">
                         <p className="text-xs text-gray-400 uppercase">Abastecimentos</p>
                         <p className="font-bold text-gray-900">{trechos.length}</p>
