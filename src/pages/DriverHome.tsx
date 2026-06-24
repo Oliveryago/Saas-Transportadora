@@ -80,7 +80,10 @@ export function DriverHome() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-11 h-11 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center">
+            <button 
+              onClick={() => alert("A tela de configurações do perfil do motorista será adicionada em breve!")}
+              className="w-11 h-11 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center active:scale-95 transition-transform"
+            >
               {driverProfile?.photo_url ? (
                 <img
                   src={driverProfile.photo_url}
@@ -90,7 +93,7 @@ export function DriverHome() {
               ) : (
                 <User className="w-5 h-5 text-blue-300" />
               )}
-            </div>
+            </button>
           </div>
         </div>
 
