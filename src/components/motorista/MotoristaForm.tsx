@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Upload, CheckCircle, Loader2, User as UserIcon, Truck, Trash2 } from "lucide-react";
 import { ocrService } from "../../services/motorista/ocrService";
 import { useVehicles } from "../../hooks/useVehicles";

@@ -3,12 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { DriverRoute } from "./components/DriverRoute";
+import { PwaPrompt } from "./components/pwa/PwaPrompt";
 import { PageSkeleton } from "./components/shared/SkeletonLoader";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { Login } from "./pages/Login";
-
-// LOG DE VERSÃO PARA FORÇAR CACHE
-console.log("%c SISTEMA ATUALIZADO V2.0 - OCR REAL ", "background: red; color: white; font-size: 20px;");
 
 // Lazy-loaded pages — code splitting por rota
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -29,6 +28,9 @@ const Accidents = lazy(() => import("./pages/Accidents").then(m => ({ default: m
 const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
 const FinancialDashboard = lazy(() => import("./pages/FinancialDashboard").then(m => ({ default: m.FinancialDashboard })));
 const Reports = lazy(() => import("./pages/Reports").then(m => ({ default: m.Reports })));
+const DriverHome = lazy(() => import("./pages/DriverHome").then(m => ({ default: m.DriverHome })));
+const DriverFuel = lazy(() => import("./pages/DriverFuel").then(m => ({ default: m.DriverFuel })));
+const DriverHistory = lazy(() => import("./pages/DriverHistory").then(m => ({ default: m.DriverHistory })));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
@@ -45,14 +47,19 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <NotificationProvider>
+          <PwaPrompt />
           <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Driver-only routes — mobile-first, no sidebar */}
+          <Route path="/driver" element={<DriverRoute><LazyPage><DriverHome /></LazyPage></DriverRoute>} />
+          <Route path="/driver/fuel" element={<DriverRoute><LazyPage><DriverFuel /></LazyPage></DriverRoute>} />
+          <Route path="/driver/history" element={<DriverRoute><LazyPage><DriverHistory /></LazyPage></DriverRoute>} />
           <Route path="/" element={<ProtectedRoute><LazyPage><Dashboard /></LazyPage></ProtectedRoute>} />
-          <Route path="/fleet" element={<ProtectedRoute><LazyPage><Fleet /></LazyPage></ProtectedRoute>} />
+          <Route path="/fleet" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Fleet /></LazyPage></ProtectedRoute>} />
           <Route path="/fuel" element={<ProtectedRoute><LazyPage><Fuel /></LazyPage></ProtectedRoute>} />
           <Route path="/maintenance" element={<ProtectedRoute><LazyPage><Maintenance /></LazyPage></ProtectedRoute>} />
           <Route path="/oil-change" element={<ProtectedRoute><LazyPage><OilChange /></LazyPage></ProtectedRoute>} />
-          <Route path="/suppliers" element={<ProtectedRoute><LazyPage><Suppliers /></LazyPage></ProtectedRoute>} />
+          <Route path="/suppliers" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Suppliers /></LazyPage></ProtectedRoute>} />
           <Route path="/parking" element={<ProtectedRoute><LazyPage><Parking /></LazyPage></ProtectedRoute>} />
           <Route path="/tire-change" element={<ProtectedRoute><LazyPage><TireChangePage /></LazyPage></ProtectedRoute>} />
           <Route path="/washing" element={<ProtectedRoute><LazyPage><Washing /></LazyPage></ProtectedRoute>} />
@@ -60,11 +67,11 @@ function App() {
           <Route path="/rotation" element={<ProtectedRoute><LazyPage><Rotation /></LazyPage></ProtectedRoute>} />
           <Route path="/insurance" element={<ProtectedRoute><LazyPage><Insurance /></LazyPage></ProtectedRoute>} />
           <Route path="/accidents" element={<ProtectedRoute><LazyPage><Accidents /></LazyPage></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><LazyPage><Settings /></LazyPage></ProtectedRoute>} />
-          <Route path="/financial" element={<ProtectedRoute><LazyPage><FinancialDashboard /></LazyPage></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><LazyPage><Reports /></LazyPage></ProtectedRoute>} />
-          <Route path="/drivers" element={<ProtectedRoute><LazyPage><Drivers /></LazyPage></ProtectedRoute>} />
-          <Route path="/superadmin" element={<ProtectedRoute><LazyPage><SuperAdmin /></LazyPage></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Settings /></LazyPage></ProtectedRoute>} />
+          <Route path="/financial" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><FinancialDashboard /></LazyPage></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Reports /></LazyPage></ProtectedRoute>} />
+          <Route path="/drivers" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Drivers /></LazyPage></ProtectedRoute>} />
+          <Route path="/superadmin" element={<ProtectedRoute allowedRoles={["superadmin"]}><LazyPage><SuperAdmin /></LazyPage></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </NotificationProvider>

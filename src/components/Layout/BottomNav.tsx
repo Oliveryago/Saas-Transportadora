@@ -27,32 +27,32 @@ import { useNotifications } from "../../contexts/NotificationContext";
 
 export function BottomNav() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const { unreadCount } = useNotifications();
 
   const mainItems = [
-    { to: "/", icon: LayoutDashboard, label: "Início" },
-    { to: "/fuel", icon: Fuel, label: "Abastecer" },
-    { to: "/fleet", icon: Truck, label: "Frota" },
-    { to: "/maintenance", icon: Wrench, label: "Oficina" },
-  ];
+    { to: "/", icon: LayoutDashboard, label: "Início", allowedRoles: ["superadmin", "admin", "manager", "driver"] },
+    { to: "/fuel", icon: Fuel, label: "Abastecer", allowedRoles: ["superadmin", "admin", "manager", "driver"] },
+    { to: "/fleet", icon: Truck, label: "Frota", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/maintenance", icon: Wrench, label: "Oficina", allowedRoles: ["superadmin", "admin", "manager"] },
+  ].filter(item => user && item.allowedRoles.includes(user.role));
 
   const secondaryItems = [
-    { to: "/drivers", icon: UserCircle, label: "Motoristas" },
-    { to: "#search", icon: Search, label: "Busca Rápida", action: () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })) },
-    { to: "/oil-change", icon: Droplet, label: "Troca de Óleo" },
-    { to: "/tire-change", icon: Disc, label: "Troca de Pneus" },
-    { to: "/rotation", icon: RefreshCcw, label: "Rodízio" },
-    { to: "/washing", icon: SprayCan, label: "Lavagem" },
-    { to: "/parking", icon: Car, label: "Estacionar" },
-    { to: "/tolls", icon: Ticket, label: "Pedágios" },
-    { to: "/insurance", icon: ShieldCheck, label: "Seguros" },
-    { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
-    { to: "/suppliers", icon: Users, label: "Fornecedores" },
-    { to: "/financial", icon: BarChart2, label: "Financeiro" },
-    { to: "/reports", icon: BarChart2, label: "Relatórios" },
-    { to: "/settings", icon: Settings, label: "Configurações" },
-  ];
+    { to: "/drivers", icon: UserCircle, label: "Motoristas", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "#search", icon: Search, label: "Busca Rápida", action: () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })), allowedRoles: ["superadmin", "admin", "manager", "driver"] },
+    { to: "/oil-change", icon: Droplet, label: "Troca de Óleo", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/tire-change", icon: Disc, label: "Troca de Pneus", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/rotation", icon: RefreshCcw, label: "Rodízio", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/washing", icon: SprayCan, label: "Lavagem", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/parking", icon: Car, label: "Estacionar", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/tolls", icon: Ticket, label: "Pedágios", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/insurance", icon: ShieldCheck, label: "Seguros", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/accidents", icon: AlertOctagon, label: "Sinistros", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/suppliers", icon: Users, label: "Fornecedores", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/financial", icon: BarChart2, label: "Financeiro", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/reports", icon: BarChart2, label: "Relatórios", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/settings", icon: Settings, label: "Configurações", allowedRoles: ["superadmin", "admin", "manager"] },
+  ].filter(item => user && item.allowedRoles.includes(user.role));
 
   return (
     <>

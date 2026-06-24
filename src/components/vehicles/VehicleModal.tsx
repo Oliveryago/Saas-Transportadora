@@ -52,7 +52,7 @@ export function VehicleModal({
           model,
           year,
           current_km: currentKm,
-          tank_capacity: tankCapacity === "" ? null : Number(tankCapacity),
+          tank_capacity: tankCapacity === "" ? undefined : Number(tankCapacity),
         });
       } else {
         await addVehicle({

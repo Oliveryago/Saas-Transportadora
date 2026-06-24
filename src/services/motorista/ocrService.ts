@@ -10,6 +10,8 @@
  * sem estourar o limite de payload da requisição.
  */
 
+import { supabase } from "../../lib/supabase";
+
 const EDGE_FUNCTION_URL = "https://tcvwyxaalephjqqoqiff.supabase.co/functions/v1/ocr-cnh";
 
 export interface OCRResult {
@@ -73,9 +75,14 @@ export const ocrService = {
 
       console.log("%c[CLOUD] Enviando para processamento seguro...", "color: #8b5cf6; font-weight: bold;");
       
+      const { data: { session } } = await supabase.auth.getSession();
+
       const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({ image: base64Image })
       });
 

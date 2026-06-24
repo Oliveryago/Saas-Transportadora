@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 import { Truck } from "lucide-react";
 
 export function Login() {
@@ -24,14 +25,28 @@ export function Login() {
       } else {
         await signUp(email, password, name);
       }
+
+      // Check role to decide where to redirect
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (userData?.role === "driver") {
+          navigate("/driver");
+          return;
+        }
+      }
       navigate("/");
     } catch (err: any) {
       console.error("Login/Register error:", err);
       let message = err.message || "Erro desconhecido";
-      // if (message.includes("rate duration")) {
-      //   message = "Limite de tentativas excedido...";
-      // }
-      setError(`[DEBUG ${new Date().toLocaleTimeString()}] ${message}`);
+      if (message.includes("rate duration")) {
+        message = "Limite de tentativas excedido, aguarde um momento.";
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

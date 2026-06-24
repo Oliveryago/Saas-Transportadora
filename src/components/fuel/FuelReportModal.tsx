@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { X, FileText, Download, Calendar, Loader2 } from "lucide-react";
 import type { CompanySettings } from "../../types";
 

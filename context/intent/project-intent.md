@@ -1,56 +1,50 @@
-# Project Intent — SaaS Transportadora
+# Project Intent: SaaS Fleet Manager para Transportadoras
 
-**Projeto:** SaaS de Gestão para Transportadoras  
-**Data:** 2026-02-24
+## What
 
-## Objetivo
+Sistema SaaS multi-tenant de gestão operacional para empresas de transporte rodoviário. Permite controlar toda a operação da frota: abastecimentos, manutenções, documentação de motoristas, custos financeiros e relatórios gerenciais.
 
-Sistema SaaS multi-empresa para gestão operacional de transportadoras, permitindo o controle de frota, combustível, manutenção, motoristas e todas as operações logísticas de múltiplas empresas a partir de uma única plataforma.
+## Why
 
-## Stack Técnica
+Transportadoras operam com frotas grandes e precisam de controle centralizado sobre custos operacionais (combustível, manutenção, pneus, pedágios), conformidade documental (CNH, seguros) e visibilidade gerencial. O sistema substitui planilhas e processos manuais por uma plataforma digital acessível de qualquer dispositivo.
 
-- **Frontend:** React + TypeScript + Vite
-- **Estilo:** Tailwind CSS
-- **Backend / Auth / DB:** Supabase (PostgreSQL + Auth + Storage + RLS)
-- **Roteamento:** React Router DOM
+## Current State
 
-## Modelo de Negócio
+Plataforma funcional e deployada na Vercel com múltiplos módulos operacionais implementados. Multi-tenant com RBAC (Role-Based Access Control). Motoristas acessam via 4G pelo celular para lançar dados em campo.
 
-- SaaS vendido para múltiplas empresas (transportadoras)
-- Cada empresa tem seu próprio conjunto de dados (multi-tenant)
-- Criador do sistema tem acesso global (SuperAdmin)
+## Current Features
 
-## Módulos Implementados
+- **Autenticação e RBAC** — Login, roles (driver/manager/admin/superadmin), sessão com timeout
+- **Dashboard** — Métricas consolidadas, alertas de troca de óleo, visão financeira
+- **Frota (Fleet)** — Cadastro de veículos e implementos (carretas)
+- **Abastecimento (Fuel)** — Registro de combustível com foto de nota, Arla 32, descontos
+- **Manutenção** — Ordens de serviço, peças, valores
+- **Troca de Óleo** — Alertas por KM e data
+- **Troca de Pneus** — Histórico e próxima troca por KM
+- **Lavagem** — Registro de lavagens por tipo
+- **Pedágios (Tolls)** — Lançamento de pedágios por viagem/UF
+- **Estacionamento (Parking)** — Controle de estacionamento
+- **Rodízio (Rotation)** — Controle de rodízio de pneus
+- **Seguros (Insurance)** — Apólices e vencimentos
+- **Sinistros (Accidents)** — Registro de acidentes
+- **Motoristas (Drivers)** — Cadastro com OCR de CNH, vínculo com veículo
+- **Fornecedores (Suppliers)** — Cadastro de postos, oficinas, etc.
+- **Financeiro** — Dashboard financeiro consolidado
+- **Relatórios** — Exportação PDF/Excel
+- **SuperAdmin** — Painel para gestão de todos os tenants
+- **Interface Motorista** — Telas mobile-first para registro em campo (em implementação)
 
-| Módulo | Rota | Descrição |
-|---|---|---|
-| Dashboard | `/` | Visão geral por empresa |
-| Frota | `/fleet` | Gestão de veículos e implementos |
-| Combustível | `/fuel` | Registro de abastecimentos |
-| Manutenção | `/maintenance` | Ordens de serviço |
-| Troca de Óleo | `/oil-change` | Alertas e registros |
-| Fornecedores | `/suppliers` | Cadastro de fornecedores |
-| Estacionamento | `/parking` | Controle de estacionamento |
-| Troca de Pneus | `/tire-change` | Registros de pneus |
-| Lavagem | `/washing` | Registros de lavagem |
-| Pedágios | `/tolls` | Controle de pedágios |
-| Rotação | `/rotation` | Controle de rotação |
-| Seguro | `/insurance` | Apólices de seguro |
-| Acidentes | `/accidents` | Registro de sinistros |
-| Configurações | `/settings` | Configurações da empresa |
-| SuperAdmin | `/superadmin` | Gestão global do sistema |
-| Motoristas | `/drivers` | Gestão de motoristas e OCR de CNH |
+## Status
+
+- **Created**: 2026-06-23 (Phase: Intent — retroativo)
+- **Status**: Active
+- **Note**: Documentado a partir de codebase existente
 
 ## Related
 
+- [Decision: Tech Stack](../decisions/001-tech-stack.md)
+- [Decision: Multi-Tenant RBAC](../decisions/002-multitenant-rbac.md)
+- [Decision: Auth e Roles](../decisions/003-auth-roles.md)
+- [Feature: Abastecimento](feature-abastecimento.md)
+- [Feature: Motorista Interface](feature-motorista-interface.md)
 - [Feature: SuperAdmin](feature-superadmin.md)
-- [Feature: Alerta via KM Abastecimento](feature-oil-alert-fuel-km.md)
-- [Decision: Multi-Tenant RBAC](../decisions/001-multitenant-rbac.md)
-- [Decision: Auth e Autorização](../decisions/002-auth-rbac-update.md)
-- [Decision: SuperAdmin Tenant Switching](../decisions/003-superadmin-tenant-switching.md)
-- [Decision: Alerta via KM Abastecimento](../decisions/004-oil-alert-fuel-km.md)
-- [Feature: Evolução para Escala Global](feature-global-scale-evolution.md)
-- [Decision: Evolução para Escala Global](../decisions/005-global-scale-evolution.md)
-- [Feature: Fuel Updates](feature-fuel-updates.md)
-- [Feature: Cadastro de Motoristas](feature-motoristas.md)
-- [Decision: Módulo de Motoristas](../decisions/007-motoristas.md)

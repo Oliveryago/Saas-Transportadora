@@ -24,28 +24,28 @@ import {
 import { NotificationBell } from "../shared/NotificationBell";
 
 export function Sidebar() {
-    const { isSuperAdmin, isImpersonating, impersonatedTenant, stopImpersonation } = useAuth();
+    const { user, isSuperAdmin, isImpersonating, impersonatedTenant, stopImpersonation } = useAuth();
     const navigate = useNavigate();
 
     const menuItems = [
-        { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-        { to: "/financial", icon: BarChart2, label: "Financeiro" },
-        { to: "/fleet", icon: Truck, label: "Frota" },
-        { to: "/drivers", icon: UserCircle, label: "Motoristas" },
-        { to: "/fuel", icon: Fuel, label: "Abastecimento" },
-        { to: "/maintenance", icon: Wrench, label: "Manutenção" },
-        { to: "/oil-change", icon: Droplet, label: "Troca de Óleo" },
-        { to: "/tire-change", icon: Disc, label: "Troca de Pneus" },
-        { to: "/rotation", icon: RefreshCcw, label: "Rodízio" },
-        { to: "/washing", icon: SprayCan, label: "Lavagem" },
-        { to: "/parking", icon: Car, label: "Estacionamento" },
-        { to: "/tolls", icon: Ticket, label: "Pedágios" },
-        { to: "/insurance", icon: ShieldCheck, label: "Seguros" },
-        { to: "/accidents", icon: AlertOctagon, label: "Sinistros" },
-        { to: "/settings", icon: Settings, label: "Configurações" },
-        { to: "/suppliers", icon: Users, label: "Fornecedores" },
-        { to: "/reports", icon: BarChart2, label: "Relatórios" },
-    ];
+        { to: "/", icon: LayoutDashboard, label: "Dashboard", allowedRoles: ["superadmin", "admin", "manager", "driver"] },
+        { to: "/financial", icon: BarChart2, label: "Financeiro", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/fleet", icon: Truck, label: "Frota", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/drivers", icon: UserCircle, label: "Motoristas", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/fuel", icon: Fuel, label: "Abastecimento", allowedRoles: ["superadmin", "admin", "manager", "driver"] },
+        { to: "/maintenance", icon: Wrench, label: "Manutenção", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/oil-change", icon: Droplet, label: "Troca de Óleo", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/tire-change", icon: Disc, label: "Troca de Pneus", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/rotation", icon: RefreshCcw, label: "Rodízio", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/washing", icon: SprayCan, label: "Lavagem", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/parking", icon: Car, label: "Estacionamento", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/tolls", icon: Ticket, label: "Pedágios", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/insurance", icon: ShieldCheck, label: "Seguros", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/accidents", icon: AlertOctagon, label: "Sinistros", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/settings", icon: Settings, label: "Configurações", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/suppliers", icon: Users, label: "Fornecedores", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/reports", icon: BarChart2, label: "Relatórios", allowedRoles: ["superadmin", "admin", "manager"] },
+    ].filter(item => user && item.allowedRoles.includes(user.role));
 
     function handleStopImpersonation() {
         stopImpersonation();

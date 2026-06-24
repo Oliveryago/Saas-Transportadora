@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useParkingRecords } from "../../hooks/useParkingRecords";
-import type { ParkingRecord, Vehicle, User } from "../../types";
+import type { ParkingRecord, Vehicle, Driver } from "../../types";
 
-interface Props { open: boolean; onClose: () => void; editingRecord?: ParkingRecord | null; vehicles: Vehicle[]; drivers: User[]; }
+interface Props { open: boolean; onClose: () => void; editingRecord?: ParkingRecord | null; vehicles: Vehicle[]; drivers: Driver[]; }
 
 function ParkingModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
     const { addRecord, updateRecord } = useParkingRecords();
@@ -69,7 +69,7 @@ function ParkingModal({ open, onClose, editingRecord, vehicles, drivers }: Props
                         <label className="block text-sm font-medium text-gray-700 mb-1">Motorista</label>
                         <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Selecione</option>
-                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.nome_completo}</option>)}
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">

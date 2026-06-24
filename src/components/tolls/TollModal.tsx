@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTollRecords } from "../../hooks/useTollRecords";
-import type { TollRecord, Vehicle, User } from "../../types";
+import type { TollRecord, Vehicle, Driver } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
 
-interface Props { open: boolean; onClose: () => void; editingRecord?: TollRecord | null; vehicles: Vehicle[]; drivers: User[]; }
+interface Props { open: boolean; onClose: () => void; editingRecord?: TollRecord | null; vehicles: Vehicle[]; drivers: Driver[]; }
 
 function TollModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
     const { addRecord, updateRecord } = useTollRecords();
@@ -67,7 +67,7 @@ function TollModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Motorista</label>
                             <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Selecione</option>
-                                {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                {drivers.map((d) => <option key={d.id} value={d.id}>{d.nome_completo}</option>)}
                             </select>
                         </div>
                     </div>

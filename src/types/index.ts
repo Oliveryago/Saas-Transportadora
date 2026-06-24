@@ -140,6 +140,9 @@ export interface FuelRecord {
     issues: string[];
   };
   is_full_tank?: boolean;
+  invoice_photo_url?: string;
+  additional_item_description?: string;
+  additional_item_value?: number;
   created_at: string;
   updated_at: string;
 }

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useAccidentRecords } from "../../hooks/useAccidentRecords";
-import type { AccidentRecord, Vehicle, User } from "../../types";
+import type { AccidentRecord, Vehicle, Driver } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
 
-interface Props { open: boolean; onClose: () => void; editingRecord?: AccidentRecord | null; vehicles: Vehicle[]; drivers: User[]; }
+interface Props { open: boolean; onClose: () => void; editingRecord?: AccidentRecord | null; vehicles: Vehicle[]; drivers: Driver[]; }
 
 function AccidentModal({ open, onClose, editingRecord, vehicles, drivers }: Props) {
     const { addRecord, updateRecord } = useAccidentRecords();
@@ -57,7 +57,7 @@ function AccidentModal({ open, onClose, editingRecord, vehicles, drivers }: Prop
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-sm font-medium text-gray-700 mb-1">Veículo *</label><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" required><option value="">Selecione</option>{vehicles.map((v) => <option key={v.id} value={v.id}>{v.license_plate} - {v.model}</option>)}</select></div>
-                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Motorista</label><select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg"><option value="">Selecione</option>{drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Motorista</label><select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg"><option value="">Selecione</option>{drivers.map((d) => <option key={d.id} value={d.id}>{d.nome_completo}</option>)}</select></div>
                     </div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg" /></div>
                     <div className="grid grid-cols-2 gap-4">

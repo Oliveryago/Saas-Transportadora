@@ -3,7 +3,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "./Layout/MainLayout";
 import { useSessionTimeout } from "../hooks/useSessionTimeout";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}
+
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   useSessionTimeout();
 
@@ -20,6 +25,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" />;
   }
 
   return <MainLayout>{children}</MainLayout>;

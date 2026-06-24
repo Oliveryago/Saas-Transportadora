@@ -1,5 +1,5 @@
 import { formatBRL } from "./reportExporter";
-import { buildAddressLine, formatCNPJ, formatPhone } from "./companySettingsHelper";
+import { formatCNPJ, formatPhone } from "./companySettingsHelper";
 import type { CompanySettings } from "../types";
 
 export interface CompanyInfo {
@@ -191,10 +191,10 @@ export async function generateFuelReportPDF(
   const head = vehicleId
     ? [["Data", "KM Inicial", "KM Final", "Distância", "Litros", "Valor (R$)", "Consumo", "Classificação", "Posto"]]
     : [["Veículo", "Data", "KM Inicial", "KM Final", "Distância", "Litros", "Valor (R$)", "Consumo", "Classificação", "Posto"]];
-  const body = rows.map((r) =>
+  const body: string[][] = rows.map((r) =>
     vehicleId
-      ? [r.data, r.km_inicial, r.km_final, r.distancia, r.litros, r.valor, r.consumo, r.classificacao, r.posto]
-      : [r.veiculo, r.data, r.km_inicial, r.km_final, r.distancia, r.litros, r.valor, r.consumo, r.classificacao, r.posto]
+      ? [r.data ?? "", r.km_inicial ?? "", r.km_final ?? "", r.distancia ?? "", r.litros ?? "", r.valor ?? "", r.consumo ?? "", r.classificacao ?? "", r.posto ?? ""]
+      : [r.veiculo ?? "", r.data ?? "", r.km_inicial ?? "", r.km_final ?? "", r.distancia ?? "", r.litros ?? "", r.valor ?? "", r.consumo ?? "", r.classificacao ?? "", r.posto ?? ""]
   );
 
   autoTable(doc, {

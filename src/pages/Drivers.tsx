@@ -12,7 +12,7 @@ export function Drivers() {
   const { drivers, loading, addDriver, updateDriver } = useDrivers();
   const { vehicles } = useVehicles();
   const { implements: implementsList } = useImplements();
-  const { settings, logoPreview: logoDataUrl } = useCompanySettings();
+  const { settings } = useCompanySettings();
   
   const [showForm, setShowForm] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -82,7 +82,7 @@ export function Drivers() {
         vehiclePlate: vehicleStr,
         implementPlate: implementStr,
         implement2Plate: implement2Str,
-        company: { settings, logoDataUrl }
+        company: { settings: settings || undefined }
       });
     } catch (err) {
       console.error("Erro ao gerar ficha:", err);
