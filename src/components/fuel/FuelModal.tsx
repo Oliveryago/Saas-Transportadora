@@ -192,15 +192,22 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Veículo *</label>
-            <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-              <option value="">Selecione um veículo</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.license_plate} - {v.model}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Veículo *</label>
+              <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <option value="">Selecione um veículo</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>{v.license_plate} - {v.model}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+            </div>
           </div>
 
           <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border-2 border-amber-200 shadow-sm">
