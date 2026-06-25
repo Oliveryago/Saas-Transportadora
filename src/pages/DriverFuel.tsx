@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 const inputClass =
-  "w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition-all text-base";
+  "w-full max-w-full box-border overflow-hidden bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition-all text-base";
 
 const labelClass = "block text-xs font-semibold text-blue-300 uppercase tracking-wider mb-1.5";
 
@@ -203,7 +203,7 @@ export function DriverFuel() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`${inputClass} min-w-0 max-w-full`}
+              className={inputClass}
               required
             />
           </div>
