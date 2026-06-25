@@ -55,6 +55,8 @@ export function DriverFuel() {
   const [arlaLiters, setArlaLiters] = useState("");
   const [arlaTotalValue, setArlaTotalValue] = useState("");
   const [isFullTank, setIsFullTank] = useState(true);
+  const [additionalItemDesc, setAdditionalItemDesc] = useState("");
+  const [additionalItemValue, setAdditionalItemValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -78,7 +80,8 @@ export function DriverFuel() {
   const fuelTotal = parseFloat(fuelTotalValue) || 0;
   const arlaNum = parseFloat(arlaLiters) || 0;
   const arlaTotal = parseFloat(arlaTotalValue) || 0;
-  const grandTotal = fuelTotal + arlaTotal;
+  const addlNum = parseFloat(additionalItemValue) || 0;
+  const grandTotal = fuelTotal + arlaTotal + addlNum;
   const pricePerLiter = fuelNum > 0 ? fuelTotal / fuelNum : 0;
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,6 +111,8 @@ export function DriverFuel() {
         arla_liters: hasArla && arlaNum > 0 ? arlaNum : undefined,
         arla_price_per_liter: hasArla && arlaNum > 0 && arlaTotal > 0 ? arlaTotal / arlaNum : undefined,
         value_brl: grandTotal,
+        additional_item_description: additionalItemDesc || undefined,
+        additional_item_value: addlNum > 0 ? addlNum : undefined,
         fuel_station: fuelStation || undefined,
         is_full_tank: isFullTank,
         invoice_photo_url: photos.length > 0 ? photos[0].url : undefined,
@@ -189,7 +194,7 @@ export function DriverFuel() {
         </div>
 
         {/* Date & KM */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>
               <CalendarDays className="w-3 h-3 inline mr-1" />Data
@@ -387,6 +392,39 @@ export function DriverFuel() {
           </div>
         </button>
 
+        {/* Adicionais */}
+        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
+          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
+            Adicionais (Opcional)
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Descrição (Ex: Perfume)</label>
+              <input
+                type="text"
+                value={additionalItemDesc}
+                onChange={(e) => setAdditionalItemDesc(e.target.value)}
+                placeholder="Ex: Perfume"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                <DollarSign className="w-3 h-3 inline" />Valor (R$)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={additionalItemValue}
+                onChange={(e) => setAdditionalItemValue(e.target.value)}
+                placeholder="R$ 0,00"
+                className={inputClass}
+                inputMode="decimal"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Photo upload */}
         <div>
           <label className={labelClass}>
@@ -443,6 +481,11 @@ export function DriverFuel() {
             {hasArla && arlaTotal > 0 && (
               <p className="text-xs text-blue-300 mt-1">
                 Diesel: R$ {fuelTotal.toFixed(2)} + Arla: R$ {arlaTotal.toFixed(2)}
+              </p>
+            )}
+            {addlNum > 0 && (
+              <p className="text-xs text-blue-300 mt-1">
+                Adicionais: R$ {addlNum.toFixed(2)}
               </p>
             )}
           </div>
