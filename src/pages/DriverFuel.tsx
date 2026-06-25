@@ -203,7 +203,7 @@ export function DriverFuel() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={inputClass}
+              className={`${inputClass} min-w-0 max-w-full`}
               required
             />
           </div>
