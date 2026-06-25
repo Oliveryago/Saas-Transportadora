@@ -81,7 +81,7 @@ export function DriverHome() {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => alert("A tela de configurações do perfil do motorista será adicionada em breve!")}
+              onClick={() => navigate("/driver/profile")}
               className="w-11 h-11 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center active:scale-95 transition-transform"
             >
               {driverProfile?.photo_url ? (

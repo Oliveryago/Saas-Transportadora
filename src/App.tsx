@@ -31,6 +31,7 @@ const Reports = lazy(() => import("./pages/Reports").then(m => ({ default: m.Rep
 const DriverHome = lazy(() => import("./pages/DriverHome").then(m => ({ default: m.DriverHome })));
 const DriverFuel = lazy(() => import("./pages/DriverFuel").then(m => ({ default: m.DriverFuel })));
 const DriverHistory = lazy(() => import("./pages/DriverHistory").then(m => ({ default: m.DriverHistory })));
+const DriverProfile = lazy(() => import("./pages/DriverProfile").then(m => ({ default: m.DriverProfile })));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
@@ -54,6 +55,7 @@ function App() {
           <Route path="/driver" element={<DriverRoute><LazyPage><DriverHome /></LazyPage></DriverRoute>} />
           <Route path="/driver/fuel" element={<DriverRoute><LazyPage><DriverFuel /></LazyPage></DriverRoute>} />
           <Route path="/driver/history" element={<DriverRoute><LazyPage><DriverHistory /></LazyPage></DriverRoute>} />
+          <Route path="/driver/profile" element={<DriverRoute><LazyPage><DriverProfile /></LazyPage></DriverRoute>} />
           <Route path="/" element={<ProtectedRoute><LazyPage><Dashboard /></LazyPage></ProtectedRoute>} />
           <Route path="/fleet" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Fleet /></LazyPage></ProtectedRoute>} />
           <Route path="/fuel" element={<ProtectedRoute><LazyPage><Fuel /></LazyPage></ProtectedRoute>} />
