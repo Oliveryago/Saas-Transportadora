@@ -194,7 +194,7 @@ export function DriverFuel() {
         </div>
 
         {/* Date & KM */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           <div>
             <label className={labelClass}>
               <CalendarDays className="w-3 h-3 inline mr-1" />Data
@@ -397,7 +397,7 @@ export function DriverFuel() {
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
             Adicionais (Opcional)
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <label className={labelClass}>Descrição (Ex: Perfume)</label>
               <input
