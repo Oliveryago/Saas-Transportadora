@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 const inputClass =
-  "w-full max-w-full box-border overflow-hidden bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition-all text-base";
+  "w-full max-w-full box-border overflow-hidden appearance-none bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition-all text-base";
 
 const labelClass = "block text-xs font-semibold text-blue-300 uppercase tracking-wider mb-1.5";
 
@@ -164,16 +164,16 @@ export function DriverFuel() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-5 pt-6 space-y-5">
+      <form onSubmit={handleSubmit} className="px-5 pt-6 space-y-5 overflow-hidden w-full max-w-full">
 
         {/* Vehicle selector */}
-        <div>
+        <div className="w-full">
           <label className={labelClass}>Veículo *</label>
-          <div className="relative">
+          <div className="relative w-full">
             <select
               value={vehicleId}
               onChange={(e) => setVehicleId(e.target.value)}
-              className={inputClass + " appearance-none pr-10"}
+              className={inputClass + " pr-10"}
               required
             >
               <option value="">Selecione o veículo</option>
@@ -194,8 +194,8 @@ export function DriverFuel() {
         </div>
 
         {/* Date & KM */}
-        <div className="flex flex-col gap-4">
-          <div>
+        <div className="flex flex-col gap-4 w-full">
+          <div className="w-full overflow-hidden">
             <label className={labelClass}>
               <CalendarDays className="w-3 h-3 inline mr-1" />Data
             </label>
@@ -204,6 +204,7 @@ export function DriverFuel() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className={inputClass}
+              style={{ width: "100%", maxWidth: "100%", display: "block" }}
               required
             />
           </div>
