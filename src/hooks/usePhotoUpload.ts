@@ -134,7 +134,7 @@ export function usePhotoUpload({ module, maxPhotos = 5, maxSizeKB = 800, quality
 
       // Upload
       const { error: uploadError } = await supabase.storage
-        .from("photos")
+        .from("Photo")
         .upload(storagePath, compressed, {
           contentType: compressed.type,
           cacheControl: "3600",
@@ -146,7 +146,7 @@ export function usePhotoUpload({ module, maxPhotos = 5, maxSizeKB = 800, quality
 
       // URL pública
       const { data: urlData } = supabase.storage
-        .from("photos")
+        .from("Photo")
         .getPublicUrl(storagePath);
 
       setProgress(100);
@@ -177,7 +177,7 @@ export function usePhotoUpload({ module, maxPhotos = 5, maxSizeKB = 800, quality
     if (!photo) return;
 
     try {
-      await supabase.storage.from("photos").remove([photo.path]);
+      await supabase.storage.from("Photo").remove([photo.path]);
       setPhotos(prev => prev.filter(p => p.id !== photoId));
     } catch (err) {
       console.error("Erro ao remover foto:", err);
