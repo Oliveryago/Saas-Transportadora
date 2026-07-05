@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-04] — Bugfix: Correção no Modal de Abastecimento (Ajuste de Altura e Bug do KM)
+### Ajustado
+- `src/components/fuel/FuelModal.tsx`
+- **Tamanho e Rolagem:** Reduzido o tamanho máximo do modal (`max-h-[85vh]`) e adicionada a rolagem vertical (`overflow-y-auto`) dentro dele para evitar que ficasse maior que a tela. Tornou os botões de ação fixos (sticky) na parte inferior para facilitar o salvamento.
+- **Bug do KM (Salvar):** Adicionado o campo `KM Registrado *` que estava ausente na UI (fazendo os novos abastecimentos salvarem com KM zero e corromperem a quilometragem atual do veículo). Adicionada também a exibição do último KM registrado para consulta rápida e validação de KM > 0 no envio do formulário.
+
 ## [2026-04-19] — Feature: Cadastro de Motoristas
 ### Adicionado
 - `context/intent/feature-motoristas.md`

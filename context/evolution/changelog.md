@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-07-04] — Bugfix: Correção no Modal de Abastecimento (Ajuste de Altura e Bug do KM)
+
+**Alterações:**
+- `src/components/fuel/FuelModal.tsx` — Redução da altura máxima da janela do modal com rolagem interna, correção do bug onde o KM não era inserido nem atualizado (adicionando campo de input de KM e exibição do KM atual na UI).
+
 ## [2026-06-23] — Context Mesh Adicionado + Interface do Motorista
 
 ### Context Mesh
