@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-05] — Bugfix: Foto do Comprovante Fiscal não Persistia no Abastecimento
+### Corrigido
+- `src/components/shared/PhotoUpload.tsx`
+- **Causa:** O componente exigia dois passos para fazer upload (selecionar → confirmar ✓). Se o usuário clicasse "Salvar" sem confirmar, `photos[]` ficava vazio e `invoice_photo_url` era salvo como `undefined`.
+- **Correção:** Upload agora ocorre imediatamente ao selecionar a foto (Câmera ou Galeria), eliminando o step intermediário de confirmação. A foto está sempre disponível quando o form é submetido.
+
 ## [2026-07-04] — Bugfix: Correção no Modal de Abastecimento (Ajuste de Altura e Bug do KM)
 ### Ajustado
 - `src/components/fuel/FuelModal.tsx`

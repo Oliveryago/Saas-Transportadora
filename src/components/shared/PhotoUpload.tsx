@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Camera, ImagePlus, X, Upload, AlertCircle, Check } from "lucide-react";
+import { Camera, ImagePlus, X, Upload, AlertCircle } from "lucide-react";
 
 interface PhotoUploadProps {
   module: string;
@@ -30,34 +30,15 @@ export function PhotoUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Preview antes de confirmar
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    setPreviewFile(file);
+    await onUpload(file);
 
     // Reset input para permitir selecionar mesmo arquivo novamente
     e.target.value = "";
-  }
-
-  async function confirmUpload() {
-    if (!previewFile) return;
-    await onUpload(previewFile);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
-    setPreviewFile(null);
-  }
-
-  function cancelPreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
-    setPreviewFile(null);
   }
 
   async function handleRemove(photoId: string) {
@@ -76,37 +57,6 @@ export function PhotoUpload({
       <label className="block text-sm font-medium text-gray-700">
         {label} ({photos.length}/{maxPhotos})
       </label>
-
-      {/* Preview de confirmação */}
-      {previewUrl && (
-        <div className="relative rounded-lg overflow-hidden border-2 border-blue-500 bg-black/5">
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className="w-full h-48 object-contain bg-gray-50"
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 p-3 flex items-center justify-between">
-            <span className="text-white text-sm font-medium">Confirmar upload?</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={cancelPreview}
-                className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={confirmUpload}
-                disabled={uploading}
-                className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Barra de progresso */}
       {uploading && (
@@ -165,7 +115,7 @@ export function PhotoUpload({
       )}
 
       {/* Botões de ação */}
-      {canAddMore && !previewUrl && !uploading && (
+      {canAddMore && !uploading && (
         <div className="flex gap-2">
           {/* Input da câmera */}
           <input

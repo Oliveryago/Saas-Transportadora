@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-07-05] — Bugfix: Upload de Foto no PhotoUpload (Abastecimento)
+
+**Problema:** Foto do comprovante fiscal não persistia após salvar o abastecimento.
+**Causa:** Fluxo de dois passos no `PhotoUpload.tsx` (selecionar → confirmar) permitia que o form fosse submetido antes do upload ocorrer.
+**Correção:** `src/components/shared/PhotoUpload.tsx` — upload imediato ao selecionar arquivo. Removido step intermediário de confirmação.
+**Impacto:** Afeta todos os módulos que usam `PhotoUpload` (abastecimento, manutenção, motoristas) — UX melhorada em todos eles.
+
 ## [2026-07-04] — Bugfix: Correção no Modal de Abastecimento (Ajuste de Altura e Bug do KM)
 
 **Alterações:**
