@@ -1,7 +1,7 @@
 import { formatBRL } from "./reportExporter";
 import { formatCNPJ, formatPhone } from "./companySettingsHelper";
 import type { CompanySettings } from "../types";
-
+import { urlToBase64 } from "./documentGenerator";
 export interface CompanyInfo {
   settings?: CompanySettings | null;
   logoDataUrl?: string | null;
@@ -20,6 +20,7 @@ interface TrechoData {
   posto: string;
   isFirst: boolean;
   isFull: boolean;
+  fotoUrl?: string;
 }
 
 interface VehicleInfo {
@@ -124,7 +125,7 @@ export async function generateFuelReportPDF(
       } else {
         imgW = maxLogoSize * ratio;
       }
-      
+
       const imgY = 18 - (imgH / 2);
       doc.addImage(logoDataUrl, 8, imgY, imgW, imgH);
     } catch { /* ignore */ }
@@ -224,6 +225,26 @@ export async function generateFuelReportPDF(
       );
     },
   });
+
+  // Adicionar fotos de comprovantes fiscais se existirem
+  for (const trecho of trechos) {
+    if (trecho.fotoUrl) {
+      try {
+        const base64 = await urlToBase64(trecho.fotoUrl);
+        if (base64) {
+          doc.addPage();
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(0, 0, 0);
+          const dataFormatada = new Date(trecho.date).toLocaleDateString("pt-BR");
+          doc.text(`Comprovante - Posto: ${trecho.posto} | Data: ${dataFormatada}`, 10, 15);
+          doc.addImage(base64, "JPEG", 10, 25, 180, 120);
+        }
+      } catch (err) {
+        console.error("Erro ao converter url da foto do comprovante para base64:", err);
+      }
+    }
+  }
 
   const fileName = vehicle
     ? `Relatorio_Combustivel_${vehicle.license_plate}${selectedMonth && selectedMonth !== "all" ? "_" + selectedMonth : ""}_${new Date().toISOString().slice(0, 10)}.pdf`

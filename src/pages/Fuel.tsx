@@ -167,6 +167,7 @@ export function Fuel() {
           posto: record.fuel_station || "-",
           isFirst,
           isFull,
+          fotoUrl: record.invoice_photo_url,
         };
       });
     });
