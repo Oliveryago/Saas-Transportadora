@@ -7,7 +7,7 @@ import { useCompanySettings } from "../hooks/useCompanySettings";
 import {
   Plus, LogOut, ArrowLeft, Trash2, Edit2, Gauge, Info,
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Fuel as FuelIcon, FileText, Loader2,
-  Download
+  Download, X
 } from "lucide-react";
 import { generateVoucher } from "../services/documentGenerator";
 import { urlToDataURL } from "../services/companySettingsHelper";
@@ -30,6 +30,7 @@ interface TrechoData {
   posto: string;
   isFirst: boolean;
   isFull: boolean;
+  fotoUrl?: string;
 }
 
 const formatTimelineDate = (dateStr: string) => {
@@ -59,6 +60,7 @@ export function Fuel() {
   const [generatingVoucher, setGeneratingVoucher] = useState<string | null>(null);
   const [reportModal, setReportModal] = useState<{ vehicleId?: string } | null>(null);
   const [simulatedKm, setSimulatedKm] = useState<Record<string, number>>({});
+  const [activePhotoUrl, setActivePhotoUrl] = useState<string | null>(null);
 
   async function handleGenerateVoucher(trecho: TrechoData) {
     setGeneratingVoucher(trecho.recordId);
@@ -527,6 +529,15 @@ export function Fuel() {
                                     <span className="text-sm font-medium text-gray-700">
                                       R$ {trecho.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
+                                    {trecho.fotoUrl && (
+                                      <button
+                                        onClick={() => setActivePhotoUrl(trecho.fotoUrl!)}
+                                        className="w-8 h-8 rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-500 hover:scale-105 transition flex-shrink-0"
+                                        title="Visualizar comprovante"
+                                      >
+                                        <img src={trecho.fotoUrl} alt="Comprovante" className="w-full h-full object-cover" />
+                                      </button>
+                                    )}
                                     <button
                                       onClick={() => handleGenerateVoucher(trecho)}
                                       disabled={generatingVoucher === trecho.recordId}
@@ -703,6 +714,15 @@ export function Fuel() {
                         <td className="px-4 py-3 text-sm text-gray-600">{trecho.posto}</td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
+                            {trecho.fotoUrl && (
+                              <button
+                                onClick={() => setActivePhotoUrl(trecho.fotoUrl!)}
+                                className="w-6 h-6 rounded overflow-hidden border border-gray-200 hover:border-emerald-500 hover:scale-105 transition flex-shrink-0"
+                                title="Visualizar comprovante"
+                              >
+                                <img src={trecho.fotoUrl} alt="Comprovante" className="w-full h-full object-cover" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleGenerateVoucher(trecho)}
                               disabled={generatingVoucher === trecho.recordId}
@@ -750,6 +770,29 @@ export function Fuel() {
           vehicleId={reportModal?.vehicleId}
           company={{ settings: companySettings }}
         />
+
+        {activePhotoUrl && (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
+            onClick={() => setActivePhotoUrl(null)}
+          >
+            <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
+              <button
+                onClick={() => setActivePhotoUrl(null)}
+                className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors flex items-center gap-1 font-medium"
+              >
+                <X className="w-5 h-5" />
+                Fechar
+              </button>
+              <img
+                src={activePhotoUrl}
+                alt="Comprovante Fiscal Ampliado"
+                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl bg-white/5"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

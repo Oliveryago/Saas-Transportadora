@@ -15,6 +15,7 @@ interface TrechoData {
   posto: string;
   isFirst: boolean;
   isFull: boolean;
+  fotoUrl?: string;
 }
 
 interface VehicleInfo {

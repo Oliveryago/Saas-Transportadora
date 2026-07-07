@@ -400,20 +400,42 @@ export async function generateVoucher(data: VoucherData): Promise<void> {
   doc.save(`Comprovante_${data.type}_${data.vehiclePlate}_${data.id.substring(0, 8)}.pdf`);
 }
 
-/**
- * Converte uma URL de imagem em base64 para uso no jsPDF
- */
-async function urlToBase64(url: string): Promise<string | null> {
+export async function urlToBase64(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     const blob = await res.blob();
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(blob);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+            resolve(dataUrl);
+          } else {
+            resolve(null);
+          }
+        } catch (e) {
+          console.error("Error drawing image to canvas:", e);
+          resolve(null);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      img.onerror = () => {
+        resolve(null);
+        URL.revokeObjectURL(objectUrl);
+      };
+      img.src = objectUrl;
     });
-  } catch {
+  } catch (error) {
+    console.error("Error converting URL to base64:", error);
     return null;
   }
 }
