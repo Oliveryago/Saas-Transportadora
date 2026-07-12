@@ -107,3 +107,25 @@ src/
 - [ ] Atualizar feature file se funcionalidade mudou
 - [ ] Criar decision file se escolha técnica foi feita
 - [ ] Verificar se types/index.ts precisa de novos tipos
+
+## Feature-Specific Context
+
+### Dupla Bomba (`/fuel` e `/driver/fuel`)
+
+- **Contexto:** Caminhões abastecem em duas bombas no mesmo evento; a nota fiscal sai com dois lançamentos de litros separados
+- **Feature:** `context/intent/feature-dupla-bomba.md`
+- **ADR:** `context/decisions/010-dupla-bomba.md`
+- **Status:** Proposed — ADR criado, aguardando implementação
+- **Arquivos a modificar:**
+  - `src/types/index.ts` — adicionar `liters_pump1`, `liters_pump2` ao tipo `FuelRecord`
+  - `src/hooks/useFuelRecords.ts` — calcular soma antes de salvar
+  - `src/components/fuel/FuelModal.tsx` — dois campos de litros + total em tempo real
+  - `src/pages/DriverFuel.tsx` — mesmos campos na interface mobile
+- **Regra crítica:** O campo `liters` existente DEVE continuar sendo salvo como soma de `liters_pump1 + liters_pump2` — todos os relatórios, KM/L e dashboards dependem de `liters`
+- **Migration SQL necessária:**
+  ```sql
+  ALTER TABLE fuel_records ADD COLUMN liters_pump1 NUMERIC;
+  ALTER TABLE fuel_records ADD COLUMN liters_pump2 NUMERIC;
+  -- Migrar dados existentes: liters_pump1 = liters atual
+  UPDATE fuel_records SET liters_pump1 = liters WHERE liters_pump1 IS NULL;
+  ```

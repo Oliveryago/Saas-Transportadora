@@ -127,6 +127,8 @@ export interface FuelRecord {
   km_digital: number;
   km_photo_url?: string;
   liters: number;
+  liters_pump1?: number;
+  liters_pump2?: number;
   value_brl?: number;
   arla_liters?: number;
   arla_price_per_liter?: number;

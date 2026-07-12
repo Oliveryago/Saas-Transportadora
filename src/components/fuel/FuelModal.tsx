@@ -35,7 +35,8 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
 
   const [vehicleId, setVehicleId] = useState("");
   const [kmDigital, setKmDigital] = useState(0);
-  const [liters, setLiters] = useState(0);
+  const [litersPump1, setLitersPump1] = useState(0);
+  const [litersPump2, setLitersPump2] = useState<number | "">("");
   const [fuelType, setFuelType] = useState<FuelType>("diesel_s500");
   const [pricePerLiter, setPricePerLiter] = useState(0);
   const [hasArla, setHasArla] = useState(false);
@@ -54,13 +55,16 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Calculated total liters from both pumps
+  const totalLiters = litersPump1 + (typeof litersPump2 === "number" ? litersPump2 : 0);
+
   const postoSuppliers = suppliers.filter((s) => s.type === "posto");
   const filteredSuggestions = postoSuppliers.filter((s) =>
     s.company_name.toLowerCase().includes(fuelStation.toLowerCase())
   );
 
   const effectivePrice = hasDiscount && discountValue > 0 ? discountValue : pricePerLiter;
-  const dieselValue = liters > 0 && effectivePrice > 0 ? liters * effectivePrice : 0;
+  const dieselValue = totalLiters > 0 && effectivePrice > 0 ? totalLiters * effectivePrice : 0;
   const adminArlaValue = hasArla && arlaLiters > 0 && arlaPricePerLiter > 0 ? arlaLiters * arlaPricePerLiter : 0;
 
   let finalValueBrl = 0;
@@ -69,7 +73,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
 
   if (isDriver) {
     finalValueBrl = fuelTotalValue + arlaTotalValue + additionalItemValue;
-    finalPricePerLiter = liters > 0 ? fuelTotalValue / liters : 0;
+    finalPricePerLiter = totalLiters > 0 ? fuelTotalValue / totalLiters : 0;
     finalArlaPricePerLiter = arlaLiters > 0 ? arlaTotalValue / arlaLiters : 0;
   } else {
     finalValueBrl = dieselValue + adminArlaValue + additionalItemValue;
@@ -81,7 +85,9 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setVehicleId(editingRecord.vehicle_id);
       setDate(editingRecord.date || editingRecord.created_at?.split("T")[0] || getLocalDateString());
       setKmDigital(editingRecord.km_digital);
-      setLiters(editingRecord.liters);
+      // Load pump values — fallback: pump1 = total liters for legacy records
+      setLitersPump1(editingRecord.liters_pump1 ?? editingRecord.liters);
+      setLitersPump2(editingRecord.liters_pump2 ?? "");
       setFuelType((editingRecord.fuel_type as FuelType) || "diesel_s500");
       setPricePerLiter(editingRecord.price_per_liter || 0);
       setHasArla(!!editingRecord.arla_liters);
@@ -106,7 +112,8 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
       setDate(getLocalDateString());
       setKmDigital(0);
-      setLiters(0);
+      setLitersPump1(0);
+      setLitersPump2("");
       setFuelType("diesel_s500");
       setPricePerLiter(0);
       setHasArla(false);
@@ -131,17 +138,21 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
 
     if (!vehicleId) { setError("Selecione um veículo"); return; }
     if (kmDigital <= 0) { setError("O KM registrado deve ser maior que 0"); return; }
-    if (liters <= 0) { setError("Quantidade de litros deve ser maior que 0"); return; }
+    if (litersPump1 <= 0) { setError("Litros - Bomba 1 deve ser maior que 0"); return; }
+    if (typeof litersPump2 === "number" && litersPump2 < 0) { setError("Litros - Bomba 2 não pode ser negativo"); return; }
     if (!isDriver && pricePerLiter <= 0) { setError("Informe o preço por litro"); return; }
     if (isDriver && fuelTotalValue <= 0) { setError("Informe o valor total do combustível"); return; }
 
     setLoading(true);
     try {
+      const pump2Value = typeof litersPump2 === "number" && litersPump2 > 0 ? litersPump2 : undefined;
       const data = {
         vehicle_id: vehicleId,
         date: date || getLocalDateString(),
         km_digital: kmDigital,
-        liters,
+        liters: totalLiters,           // soma das duas bombas — source of truth para relatórios
+        liters_pump1: litersPump1,
+        liters_pump2: pump2Value,
         fuel_type: fuelType,
         price_per_liter: finalPricePerLiter,
         arla_liters: hasArla || (isDriver && arlaLiters > 0) ? arlaLiters : undefined,
@@ -241,12 +252,29 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               {/* Campos do Motorista */}
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
                 <h4 className="font-bold text-blue-900">1. Combustível</h4>
+                {/* Dupla Bomba — Motorista */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-blue-900 mb-1">Litros *</label>
-                    <input type="number" value={liters || ""} onChange={(e) => setLiters(parseFloat(e.target.value) || 0)}
+                    <label className="block text-sm font-medium text-blue-900 mb-1">Litros - Bomba 1 *</label>
+                    <input type="number" value={litersPump1 || ""} onChange={(e) => setLitersPump1(parseFloat(e.target.value) || 0)}
                       step="0.001" className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white" min="0" required />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-blue-900 mb-1">Litros - Bomba 2</label>
+                    <input type="number" value={litersPump2 === "" ? "" : litersPump2}
+                      onChange={(e) => setLitersPump2(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
+                      step="0.001" className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white" min="0" placeholder="Opcional" />
+                  </div>
+                </div>
+                {totalLiters > 0 && (
+                  <div className="flex items-center justify-between bg-blue-100 rounded-lg px-3 py-2">
+                    <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Total de Litros</span>
+                    <span className="text-sm font-bold text-blue-900">
+                      {totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} L
+                    </span>
+                  </div>
+                )}
+                <div className="grid grid-cols-1">
                   <div>
                     <label className="block text-sm font-medium text-blue-900 mb-1">Valor Total (R$) *</label>
                     <input type="number" value={fuelTotalValue || ""} onChange={(e) => setFuelTotalValue(parseFloat(e.target.value) || 0)}
@@ -304,12 +332,29 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                 </select>
               </div>
 
+              {/* Dupla Bomba — Admin/Gestor */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Litros *</label>
-                  <input type="number" value={liters || ""} onChange={(e) => setLiters(parseFloat(e.target.value) || 0)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Litros - Bomba 1 *</label>
+                  <input type="number" value={litersPump1 || ""} onChange={(e) => setLitersPump1(parseFloat(e.target.value) || 0)}
                     step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" required />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Litros - Bomba 2</label>
+                  <input type="number" value={litersPump2 === "" ? "" : litersPump2}
+                    onChange={(e) => setLitersPump2(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
+                    step="0.001" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" placeholder="Opcional" />
+                </div>
+              </div>
+              {totalLiters > 0 && (
+                <div className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+                  <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Total de Litros</span>
+                  <span className="text-sm font-bold text-blue-800">
+                    {totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} L
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-1">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Preço/Litro (R$) *</label>
                   <input type="number" value={pricePerLiter || ""} onChange={(e) => setPricePerLiter(parseFloat(e.target.value) || 0)}
@@ -391,7 +436,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               </div>
               {hasDiscount && discountValue > 0 && (
                 <p className="text-xs text-blue-600 mt-1">
-                  Economia: R$ {((pricePerLiter - discountValue) * liters).toFixed(2)} ({((1 - discountValue / pricePerLiter) * 100).toFixed(1)}% de desconto)
+                  Economia: R$ {((pricePerLiter - discountValue) * totalLiters).toFixed(2)} ({((1 - discountValue / pricePerLiter) * 100).toFixed(1)}% de desconto)
                 </p>
               )}
             </div>

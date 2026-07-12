@@ -46,5 +46,6 @@ Plataforma funcional e deployada na Vercel com múltiplos módulos operacionais 
 - [Decision: Multi-Tenant RBAC](../decisions/002-multitenant-rbac.md)
 - [Decision: Auth e Roles](../decisions/003-auth-roles.md)
 - [Feature: Abastecimento](feature-abastecimento.md)
+- [Feature: Dupla Bomba](feature-dupla-bomba.md)
 - [Feature: Motorista Interface](feature-motorista-interface.md)
 - [Feature: SuperAdmin](feature-superadmin.md)

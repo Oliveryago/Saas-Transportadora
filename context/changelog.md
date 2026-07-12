@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-11] — Feature: Dupla Bomba (Dois Bicos de Abastecimento)
+### Adicionado
+- `context/intent/feature-dupla-bomba.md` — Intent da feature de dupla bomba
+- `context/decisions/010-dupla-bomba.md` — ADR: colunas `liters_pump1` e `liters_pump2` na tabela `fuel_records`, com `liters` mantido como soma para backward compatibility
+- Escopo: Formulário de abastecimento passa a ter dois campos de litros (Bomba 1 obrigatório, Bomba 2 opcional); soma calculada em tempo real; valores individuais salvos para auditoria
+
 ## [2026-07-05] — Bugfix: Foto do Comprovante Fiscal não Persistia no Abastecimento
 ### Corrigido
 - `src/components/shared/PhotoUpload.tsx`

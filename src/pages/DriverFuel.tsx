@@ -46,7 +46,8 @@ export function DriverFuel() {
 
   const [vehicleId, setVehicleId] = useState("");
   const [kmDigital, setKmDigital] = useState("");
-  const [liters, setLiters] = useState("");
+  const [litersPump1, setLitersPump1] = useState("");
+  const [litersPump2, setLitersPump2] = useState("");
   const [fuelTotalValue, setFuelTotalValue] = useState("");
   const [fuelType, setFuelType] = useState<FuelType>("diesel_s500");
   const [fuelStation, setFuelStation] = useState("");
@@ -76,7 +77,9 @@ export function DriverFuel() {
 
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
 
-  const fuelNum = parseFloat(liters) || 0;
+  const pump1Num = parseFloat(litersPump1) || 0;
+  const pump2Num = parseFloat(litersPump2) || 0;
+  const fuelNum = pump1Num + pump2Num;  // total litros = soma das bombas
   const fuelTotal = parseFloat(fuelTotalValue) || 0;
   const arlaNum = parseFloat(arlaLiters) || 0;
   const arlaTotal = parseFloat(arlaTotalValue) || 0;
@@ -95,7 +98,8 @@ export function DriverFuel() {
     setError(null);
 
     if (!vehicleId) return setError("Selecione um veículo");
-    if (fuelNum <= 0) return setError("Informe a quantidade de litros");
+    if (pump1Num <= 0) return setError("Informe os litros da Bomba 1");
+    if (pump2Num < 0) return setError("Litros da Bomba 2 não pode ser negativo");
     if (fuelTotal <= 0) return setError("Informe o valor total do combustível");
     if (!parseInt(kmDigital)) return setError("Informe o KM atual do veículo");
 
@@ -105,7 +109,9 @@ export function DriverFuel() {
         vehicle_id: vehicleId,
         date: date,
         km_digital: parseInt(kmDigital),
-        liters: fuelNum,
+        liters: fuelNum,                     // soma das bombas — source of truth
+        liters_pump1: pump1Num,
+        liters_pump2: pump2Num > 0 ? pump2Num : undefined,
         fuel_type: fuelType,
         price_per_liter: pricePerLiter,
         arla_liters: hasArla && arlaNum > 0 ? arlaNum : undefined,
@@ -280,40 +286,60 @@ export function DriverFuel() {
           </div>
         </div>
 
-        {/* Liters + Total */}
+        {/* Liters + Total — Dupla Bomba */}
         <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
           <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider flex items-center gap-2">
             <Droplets className="w-4 h-4" />Diesel / Combustível
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Litros *</label>
+              <label className={labelClass}>Litros - Bomba 1 *</label>
               <input
                 type="number"
                 step="0.01"
-                value={liters}
-                onChange={(e) => setLiters(e.target.value)}
-                placeholder="0,00"
+                value={litersPump1}
+                onChange={(e) => setLitersPump1(e.target.value)}
+                placeholder="0,000"
                 className={inputClass}
                 inputMode="decimal"
                 required
               />
             </div>
             <div>
-              <label className={labelClass}>
-                <DollarSign className="w-3 h-3 inline" />Valor Total *
-              </label>
+              <label className={labelClass}>Litros - Bomba 2</label>
               <input
                 type="number"
                 step="0.01"
-                value={fuelTotalValue}
-                onChange={(e) => setFuelTotalValue(e.target.value)}
-                placeholder="R$ 0,00"
+                value={litersPump2}
+                onChange={(e) => setLitersPump2(e.target.value)}
+                placeholder="Opcional"
                 className={inputClass}
                 inputMode="decimal"
-                required
               />
             </div>
+          </div>
+          {fuelNum > 0 && (
+            <div className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5">
+              <span className="text-xs font-semibold text-blue-300 uppercase tracking-wide">Total de Litros</span>
+              <span className="text-sm font-bold text-white">
+                {fuelNum.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} L
+              </span>
+            </div>
+          )}
+          <div>
+            <label className={labelClass}>
+              <DollarSign className="w-3 h-3 inline" />Valor Total *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={fuelTotalValue}
+              onChange={(e) => setFuelTotalValue(e.target.value)}
+              placeholder="R$ 0,00"
+              className={inputClass}
+              inputMode="decimal"
+              required
+            />
           </div>
           {pricePerLiter > 0 && (
             <p className="text-xs text-green-300 text-center">
