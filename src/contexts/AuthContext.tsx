@@ -9,6 +9,10 @@ interface AuthContextType {
   realTenant: Tenant | null;
   loading: boolean;
   isSuperAdmin: boolean;
+  isAdmin: boolean;
+  isManager: boolean;
+  isDriver: boolean;
+  userRole: UserRole | undefined;
   isImpersonating: boolean;
   impersonatedTenant: Tenant | null;
   impersonateTenant: (tenant: Tenant) => void;
@@ -27,6 +31,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = user?.role === "superadmin" || user?.metadata?.superadmin === true;
+  const isAdmin = user?.role === "admin" || isSuperAdmin;
+  const isManager = user?.role === "manager" || isAdmin;
+  const isDriver = user?.role === "driver";
+  const userRole = user?.role;
   const isImpersonating = isSuperAdmin && impersonatedTenant !== null;
 
   // The active tenant: impersonated tenant takes priority for SuperAdmin
@@ -165,6 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         realTenant,
         loading,
         isSuperAdmin,
+        isAdmin,
+        isManager,
+        isDriver,
+        userRole,
         isImpersonating,
         impersonatedTenant,
         impersonateTenant,

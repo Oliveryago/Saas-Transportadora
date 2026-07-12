@@ -45,7 +45,7 @@ export function Sidebar() {
         { to: "/settings", icon: Settings, label: "Configurações", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/suppliers", icon: Users, label: "Fornecedores", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/reports", icon: BarChart2, label: "Relatórios", allowedRoles: ["superadmin", "admin", "manager"] },
-    ].filter(item => user && item.allowedRoles.includes(user.role));
+    ].filter(item => user && (item.allowedRoles.includes(user.role) || isSuperAdmin));
 
     function handleStopImpersonation() {
         stopImpersonation();

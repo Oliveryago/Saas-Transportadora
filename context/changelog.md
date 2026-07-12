@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-07-11] — Feature: SuperAdmin RBAC Helpers e Roteamento
+### Modificado
+- `src/contexts/AuthContext.tsx`: Adicionados helpers `isAdmin`, `isManager`, `isDriver` e `userRole` para simplificar verificações de papéis (Roles).
+- `src/components/ProtectedRoute.tsx`: Bypassa restrição de `allowedRoles` caso seja `isSuperAdmin`.
+- `src/components/Layout/Sidebar.tsx`: Itens de menu restritos agora são exibidos para o SuperAdmin independentemente de `allowedRoles`.
+- Banco de Dados (Pendente manual): Função `public.get_user_role()` sugerida para políticas RLS multi-tenant do Supabase.
+
 ## [2026-07-11] — Feature: Dupla Bomba (Dois Bicos de Abastecimento)
 ### Adicionado
 - `context/intent/feature-dupla-bomba.md` — Intent da feature de dupla bomba
