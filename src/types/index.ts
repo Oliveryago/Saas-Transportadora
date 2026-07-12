@@ -145,6 +145,7 @@ export interface FuelRecord {
   invoice_photo_url?: string;
   additional_item_description?: string;
   additional_item_value?: number;
+  additional_items?: Array<{ description: string; value: number }>;
   created_at: string;
   updated_at: string;
 }

@@ -23,6 +23,7 @@ import {
   X,
   ImagePlus,
   Trash2,
+  Plus,
 } from "lucide-react";
 
 const inputClass =
@@ -56,8 +57,7 @@ export function DriverFuel() {
   const [arlaLiters, setArlaLiters] = useState("");
   const [arlaTotalValue, setArlaTotalValue] = useState("");
   const [isFullTank, setIsFullTank] = useState(true);
-  const [additionalItemDesc, setAdditionalItemDesc] = useState("");
-  const [additionalItemValue, setAdditionalItemValue] = useState("");
+  const [additionalItems, setAdditionalItems] = useState<{description: string, value: number}[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -83,7 +83,7 @@ export function DriverFuel() {
   const fuelTotal = parseFloat(fuelTotalValue) || 0;
   const arlaNum = parseFloat(arlaLiters) || 0;
   const arlaTotal = parseFloat(arlaTotalValue) || 0;
-  const addlNum = parseFloat(additionalItemValue) || 0;
+  const addlNum = additionalItems.reduce((sum, item) => sum + (item.value || 0), 0);
   const grandTotal = fuelTotal + arlaTotal + addlNum;
   const pricePerLiter = fuelNum > 0 ? fuelTotal / fuelNum : 0;
 
@@ -117,8 +117,9 @@ export function DriverFuel() {
         arla_liters: hasArla && arlaNum > 0 ? arlaNum : undefined,
         arla_price_per_liter: hasArla && arlaNum > 0 && arlaTotal > 0 ? arlaTotal / arlaNum : undefined,
         value_brl: grandTotal,
-        additional_item_description: additionalItemDesc || undefined,
-        additional_item_value: addlNum > 0 ? addlNum : undefined,
+        additional_items: additionalItems,
+        additional_item_description: additionalItems.length > 0 ? additionalItems[0].description : undefined,
+        additional_item_value: additionalItems.length > 0 ? additionalItems[0].value : undefined,
         fuel_station: fuelStation || undefined,
         is_full_tank: isFullTank,
         invoice_photo_url: photos.length > 0 ? photos[0].url : undefined,
@@ -421,35 +422,70 @@ export function DriverFuel() {
 
         {/* Adicionais */}
         <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
-          <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
-            Adicionais (Opcional)
-          </p>
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className={labelClass}>Descrição (Ex: Perfume)</label>
-              <input
-                type="text"
-                value={additionalItemDesc}
-                onChange={(e) => setAdditionalItemDesc(e.target.value)}
-                placeholder="Ex: Perfume"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>
-                <DollarSign className="w-3 h-3 inline" />Valor (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={additionalItemValue}
-                onChange={(e) => setAdditionalItemValue(e.target.value)}
-                placeholder="R$ 0,00"
-                className={inputClass}
-                inputMode="decimal"
-              />
-            </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
+              Adicionais (Opcional)
+            </p>
+            <button
+              type="button"
+              onClick={() => setAdditionalItems([...additionalItems, { description: "", value: 0 }])}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors text-xs font-bold border border-blue-500/30"
+            >
+              <Plus className="w-3 h-3" />
+              Item
+            </button>
           </div>
+          
+          {additionalItems.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {additionalItems.map((item, index) => (
+                <div key={index} className="flex gap-2 bg-white/5 p-3 rounded-xl border border-white/10 relative">
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-blue-300 uppercase tracking-wider mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => {
+                          const newItems = [...additionalItems];
+                          newItems[index].description = e.target.value;
+                          setAdditionalItems(newItems);
+                        }}
+                        placeholder="Ex: Perfume"
+                        className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-blue-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-blue-300 uppercase tracking-wider mb-1">Valor (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.value || ""}
+                        onChange={(e) => {
+                          const newItems = [...additionalItems];
+                          newItems[index].value = parseFloat(e.target.value) || 0;
+                          setAdditionalItems(newItems);
+                        }}
+                        placeholder="R$ 0,00"
+                        className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-blue-400"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newItems = additionalItems.filter((_, i) => i !== index);
+                      setAdditionalItems(newItems);
+                    }}
+                    className="w-8 flex items-center justify-center text-red-400/80 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Photo upload */}

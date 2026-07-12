@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 import { useSuppliers } from "../../hooks/useSuppliers";
 import type { FuelRecord, Vehicle, FuelType } from "../../types";
 import { FUEL_TYPE_LABELS } from "../../types";
@@ -50,8 +50,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   const [isFullTank, setIsFullTank] = useState(true);
   const [fuelTotalValue, setFuelTotalValue] = useState(0);
   const [arlaTotalValue, setArlaTotalValue] = useState(0);
-  const [additionalItemDesc, setAdditionalItemDesc] = useState("");
-  const [additionalItemValue, setAdditionalItemValue] = useState(0);
+  const [additionalItems, setAdditionalItems] = useState<{description: string, value: number}[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,12 +70,14 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   let finalPricePerLiter = pricePerLiter;
   let finalArlaPricePerLiter = arlaPricePerLiter;
 
+  const additionalItemsTotal = additionalItems.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+
   if (isDriver) {
-    finalValueBrl = fuelTotalValue + arlaTotalValue + additionalItemValue;
+    finalValueBrl = fuelTotalValue + arlaTotalValue + additionalItemsTotal;
     finalPricePerLiter = totalLiters > 0 ? fuelTotalValue / totalLiters : 0;
     finalArlaPricePerLiter = arlaLiters > 0 ? arlaTotalValue / arlaLiters : 0;
   } else {
-    finalValueBrl = dieselValue + adminArlaValue + additionalItemValue;
+    finalValueBrl = dieselValue + adminArlaValue + additionalItemsTotal;
   }
   const displayTotalValue = finalValueBrl;
 
@@ -97,8 +98,17 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setDiscountValue(editingRecord.discount_value || 0);
       setFuelStation(editingRecord.fuel_station || "");
       setIsFullTank(editingRecord.is_full_tank ?? true);
-      setAdditionalItemDesc(editingRecord.additional_item_description || "");
-      setAdditionalItemValue(editingRecord.additional_item_value || 0);
+      
+      if (editingRecord.additional_items?.length) {
+        setAdditionalItems(editingRecord.additional_items);
+      } else if (editingRecord.additional_item_description) {
+        setAdditionalItems([{
+          description: editingRecord.additional_item_description,
+          value: editingRecord.additional_item_value || 0
+        }]);
+      } else {
+        setAdditionalItems([]);
+      }
       if (editingRecord.invoice_photo_url) {
         loadExistingPhotos([editingRecord.invoice_photo_url]);
       } else {
@@ -123,8 +133,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setDiscountValue(0);
       setFuelStation("");
       setIsFullTank(true);
-      setAdditionalItemDesc("");
-      setAdditionalItemValue(0);
+      setAdditionalItems([]);
       setFuelTotalValue(0);
       setArlaTotalValue(0);
       clearPhotos();
@@ -159,8 +168,9 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
         arla_price_per_liter: hasArla || (isDriver && arlaLiters > 0) ? finalArlaPricePerLiter : undefined,
         has_discount: hasDiscount,
         discount_value: hasDiscount ? discountValue : undefined,
-        additional_item_description: additionalItemDesc,
-        additional_item_value: additionalItemValue,
+        additional_items: additionalItems,
+        additional_item_description: additionalItems.length > 0 ? additionalItems[0].description : "",
+        additional_item_value: additionalItems.length > 0 ? additionalItems[0].value : 0,
         invoice_photo_url: photos.length > 0 ? photos[0].url : undefined,
         fuel_station: fuelStation,
         is_full_tank: isFullTank,
@@ -304,20 +314,51 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               </div>
 
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-4">
-                <h4 className="font-bold text-amber-900">3. Adicionais (Opcional)</h4>
-                <p className="text-xs text-amber-700">Perfume, flanela, ou outros itens na mesma nota.</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-amber-900 mb-1">Descrição</label>
-                    <input type="text" value={additionalItemDesc} onChange={(e) => setAdditionalItemDesc(e.target.value)}
-                      placeholder="Ex: Perfume" className="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white" />
+                    <h4 className="font-bold text-amber-900">3. Adicionais (Opcional)</h4>
+                    <p className="text-xs text-amber-700">Perfume, flanela, ou outros itens na mesma nota.</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-amber-900 mb-1">Valor (R$)</label>
-                    <input type="number" value={additionalItemValue || ""} onChange={(e) => setAdditionalItemValue(parseFloat(e.target.value) || 0)}
-                      step="0.01" className="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white" min="0" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalItems([...additionalItems, { description: "", value: 0 }])}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-200 text-amber-800 rounded-lg hover:bg-amber-300 transition-colors text-sm font-semibold"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Item
+                  </button>
                 </div>
+                
+                {additionalItems.length > 0 && (
+                  <div className="space-y-3">
+                    {additionalItems.map((item, index) => (
+                      <div key={index} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-amber-200">
+                        <div className="flex-1 space-y-1">
+                          <label className="block text-xs font-medium text-amber-900">Descrição</label>
+                          <input type="text" value={item.description} onChange={(e) => {
+                            const newItems = [...additionalItems];
+                            newItems[index].description = e.target.value;
+                            setAdditionalItems(newItems);
+                          }} placeholder="Ex: Perfume" className="w-full px-3 py-1.5 border border-amber-200 rounded text-sm focus:ring-1 focus:ring-amber-500 bg-white" />
+                        </div>
+                        <div className="w-24 space-y-1">
+                          <label className="block text-xs font-medium text-amber-900">Valor (R$)</label>
+                          <input type="number" value={item.value || ""} onChange={(e) => {
+                            const newItems = [...additionalItems];
+                            newItems[index].value = parseFloat(e.target.value) || 0;
+                            setAdditionalItems(newItems);
+                          }} step="0.01" min="0" className="w-full px-3 py-1.5 border border-amber-200 rounded text-sm focus:ring-1 focus:ring-amber-500 bg-white" />
+                        </div>
+                        <button type="button" onClick={() => {
+                          const newItems = additionalItems.filter((_, i) => i !== index);
+                          setAdditionalItems(newItems);
+                        }} className="mt-5 p-1.5 text-red-500 hover:bg-red-50 rounded">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -408,19 +449,48 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               )}
 
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
-                <h4 className="font-bold text-gray-800">Adicionais (Opcional)</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                    <input type="text" value={additionalItemDesc} onChange={(e) => setAdditionalItemDesc(e.target.value)}
-                      placeholder="Ex: Perfume" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 bg-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-                    <input type="number" value={additionalItemValue || ""} onChange={(e) => setAdditionalItemValue(parseFloat(e.target.value) || 0)}
-                      step="0.01" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 bg-white" min="0" />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-gray-800">Adicionais (Opcional)</h4>
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalItems([...additionalItems, { description: "", value: 0 }])}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors text-sm font-semibold"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Item
+                  </button>
                 </div>
+                
+                {additionalItems.length > 0 && (
+                  <div className="space-y-3">
+                    {additionalItems.map((item, index) => (
+                      <div key={index} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                        <div className="flex-1 space-y-1">
+                          <label className="block text-xs font-medium text-gray-700">Descrição</label>
+                          <input type="text" value={item.description} onChange={(e) => {
+                            const newItems = [...additionalItems];
+                            newItems[index].description = e.target.value;
+                            setAdditionalItems(newItems);
+                          }} placeholder="Ex: Perfume" className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-500 bg-white" />
+                        </div>
+                        <div className="w-24 space-y-1">
+                          <label className="block text-xs font-medium text-gray-700">Valor (R$)</label>
+                          <input type="number" value={item.value || ""} onChange={(e) => {
+                            const newItems = [...additionalItems];
+                            newItems[index].value = parseFloat(e.target.value) || 0;
+                            setAdditionalItems(newItems);
+                          }} step="0.01" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-500 bg-white" />
+                        </div>
+                        <button type="button" onClick={() => {
+                          const newItems = additionalItems.filter((_, i) => i !== index);
+                          setAdditionalItems(newItems);
+                        }} className="mt-5 p-1.5 text-red-500 hover:bg-red-50 rounded">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
