@@ -188,7 +188,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
           ...dataToSave,
           km_photo_url: undefined,
           validations: { verified: false, issues: [] },
-          driver_id: "",
+          driver_id: undefined,
         } as any);
       }
       onClose();

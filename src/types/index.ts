@@ -18,7 +18,7 @@ export type OilType = "motor" | "cambio" | "diferencial";
 
 export type SupplierType = "posto" | "oficina" | "lavajato" | "estacionamento" | "outro";
 
-export type VehicleWashType = "interna" | "externa" | "cavalo" | "toco" | "truck" | "carreta" | "bitrem" | "rodotrem" | "lubrificacao" | "carro_simples" | "carro_completa" | "moto" | "van" | "outro" | "carro";
+export type VehicleWashType = "interna" | "externa" | "cavalo" | "toco" | "truck" | "carreta" | "bitrem" | "rodotrem" | "lubrificacao" | "carro_simples" | "carro_completa" | "moto" | "van" | "outro" | "carro" | "laudo_caminhao";
 
 export const IMPLEMENT_TYPE_LABELS: Record<ImplementType, string> = {
   carreta: "Carreta",
@@ -72,6 +72,7 @@ export const VEHICLE_WASH_TYPE_LABELS: Record<VehicleWashType, string> = {
   van: "Lavagem Van",
   outro: "Outro",
   carro: "Carro",
+  laudo_caminhao: "Laudo de Caminhão",
 };
 
 export interface Tenant {

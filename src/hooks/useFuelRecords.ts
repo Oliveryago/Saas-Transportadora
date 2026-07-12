@@ -52,9 +52,9 @@ export function useFuelRecords(vehicleId?: string, dateFilter?: DateFilter | nul
         .from("fuel_records")
         .insert([
           {
+            driver_id: user!.id,
             ...record,
             tenant_id: tenant!.id,
-            driver_id: user!.id,
           },
         ])
         .select();
