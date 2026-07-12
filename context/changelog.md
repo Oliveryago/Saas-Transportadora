@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-07-11] — Feature: Filtro de Data Unificado
+### Adicionado
+- `src/components/shared/DateFilter.tsx`: Novo componente visual reutilizável de filtro de data com suporte a Mês/Ano e Período Personalizado (Range)
+- `src/hooks/useDateFilter.ts`: Novo hook utilitário de controle de estado e conversão de filtros para strings ISO de datas
+### Modificado
+- `src/types/index.ts`: Inclusão dos tipos `DateFilterMode` e `DateFilter`
+- Todos os hooks de dados operacionais integrados com parâmetros de data e gte/lte no Supabase: `useFuelRecords`, `useMaintenanceRecords`, `useTollRecords`, `useWashingRecords`, `useTireChanges`, `useParkingRecords`, `useRotationRecords`, `useAccidentRecords`, `useInsuranceRecords`
+- `useDashboardMetrics.ts`: Removido período hardcoded de 6 meses para adotar o filtro de data (com fallback inteligente de 6 meses quando vazio)
+- Implementada a renderização do `DateFilterPicker` nas 11 páginas operacionais e dashboards
+
 ## [2026-07-11] — Feature: Múltiplos Itens Adicionais no Abastecimento
 ### Modificado
 - `src/types/index.ts`: Adicionado campo `additional_items?: Array<{description, value}>` ao tipo `FuelRecord`
