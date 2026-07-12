@@ -6,11 +6,14 @@ import { useDrivers } from "../hooks/useDrivers";
 import AccidentModal from "../components/accidents/AccidentModal";
 import type { AccidentRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Accidents() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-    const { records, loading, deleteRecord } = useAccidentRecords(selectedVehicleId);
+    const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
+    const { records, loading, deleteRecord } = useAccidentRecords(selectedVehicleId, dateFilter);
     const { vehicles } = useVehicles();
     const { drivers } = useDrivers();
     const [modalOpen, setModalOpen] = useState(false);
@@ -24,8 +27,9 @@ export function Accidents() {
             <header className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div><h1 className="text-2xl font-bold text-gray-900">Sinistros</h1><p className="text-gray-500 text-sm">{records.length} registros</p></div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
+                        <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
                         <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Sinistro</button>
                     </div>
                 </div>

@@ -5,9 +5,12 @@ import { useVehicles } from "../hooks/useVehicles";
 import RotationModal from "../components/rotation/RotationModal";
 import type { RotationRecord } from "../types";
 import { formatLocalDate } from "../lib/utils/date";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 
 export function Rotation() {
-    const { records, loading, deleteRecord } = useRotationRecords();
+    const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
+    const { records, loading, deleteRecord } = useRotationRecords(undefined, dateFilter);
     const { vehicles } = useVehicles();
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<RotationRecord | null>(null);
@@ -19,7 +22,10 @@ export function Rotation() {
             <header className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div><h1 className="text-2xl font-bold text-gray-900">Rodízio</h1><p className="text-gray-500 text-sm">{records.length} registros</p></div>
-                    <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><Plus className="w-4 h-4" /> Novo Rodízio</button>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
+                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><Plus className="w-4 h-4" /> Novo Rodízio</button>
+                    </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">

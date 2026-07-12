@@ -1,5 +1,15 @@
 export type UserRole = "driver" | "manager" | "admin" | "superadmin";
 
+// ─── Date Filter ─────────────────────────────────────────────────────────────
+export type DateFilterMode = "month" | "range";
+export interface DateFilter {
+  mode: DateFilterMode;
+  month?: number;   // 0–11 (Jan=0)
+  year?: number;
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string;   // YYYY-MM-DD
+}
+
 export type ImplementType = "carreta" | "bitrem" | "rodotrem" | "graneleiro" | "sider" | "bau" | "tanque" | "basculante" | "prancha" | "cegonha";
 
 export type FuelType = "diesel_s500" | "diesel_s10" | "gas_natural" | "arla_32" | "gasolina" | "alcool";

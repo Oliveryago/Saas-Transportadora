@@ -5,11 +5,14 @@ import { useVehicles } from "../hooks/useVehicles";
 import InsuranceModal from "../components/insurance/InsuranceModal";
 import type { InsuranceRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Insurance() {
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-    const { records, loading, deleteRecord } = useInsuranceRecords(selectedVehicleId);
+    const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
+    const { records, loading, deleteRecord } = useInsuranceRecords(selectedVehicleId, dateFilter);
     const { vehicles } = useVehicles();
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<InsuranceRecord | null>(null);
@@ -30,8 +33,9 @@ export function Insurance() {
             <header className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div><h1 className="text-2xl font-bold text-gray-900">Seguros</h1><p className="text-gray-500 text-sm">{records.length} apólices</p></div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
+                        <DateFilterPicker value={dateFilter} onChange={setDateFilter} label="Filtrar vencimento" />
                         <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Seguro</button>
                     </div>
                 </div>

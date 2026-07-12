@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { MaintenanceRecord } from "../types";
+import { resolveDateFilter } from "./useDateFilter";
+import type { DateFilter } from "../types";
 
-export function useMaintenanceRecords(vehicleId?: string) {
+export function useMaintenanceRecords(vehicleId?: string, dateFilter?: DateFilter | null) {
     const { tenant } = useAuth();
     const [records, setRecords] = useState<MaintenanceRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -12,7 +14,7 @@ export function useMaintenanceRecords(vehicleId?: string) {
     useEffect(() => {
         if (!tenant) return;
         fetchRecords();
-    }, [tenant, vehicleId]);
+    }, [tenant, vehicleId, dateFilter]);
 
     async function fetchRecords() {
         try {
@@ -23,9 +25,11 @@ export function useMaintenanceRecords(vehicleId?: string) {
                 .select("*")
                 .eq("tenant_id", tenant!.id);
 
-            if (vehicleId) {
-                query = query.eq("vehicle_id", vehicleId);
-            }
+            if (vehicleId) query = query.eq("vehicle_id", vehicleId);
+
+            const { fromISO, toISO } = resolveDateFilter(dateFilter ?? null);
+            if (fromISO) query = query.gte("date", fromISO);
+            if (toISO) query = query.lte("date", toISO);
 
             const { data, error: err } = await query.order("created_at", { ascending: false });
             if (err) throw err;

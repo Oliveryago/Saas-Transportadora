@@ -6,6 +6,8 @@ import {
     Car, ShieldCheck, DollarSign, TrendingUp, Calendar
 } from "lucide-react";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 
 interface CategoryTotal {
     label: string;
@@ -24,7 +26,7 @@ function formatBRL(value: number) {
 export function FinancialDashboard() {
     const { tenant } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [period, setPeriod] = useState<"month" | "year" | "all">("month");
+    const { filter: dateFilter, setFilter: setDateFilter, fromISO, toISO, label: dateFilterLabel } = useDateFilter();
     const [categories, setCategories] = useState<CategoryTotal[]>([]);
     const [grandTotal, setGrandTotal] = useState(0);
     const [recentEntries, setRecentEntries] = useState<any[]>([]);
@@ -33,24 +35,19 @@ export function FinancialDashboard() {
 
     useEffect(() => {
         if (tenant?.id) fetchFinancialData();
-    }, [tenant?.id, period, selectedVehicleId]);
+    }, [tenant?.id, dateFilter, selectedVehicleId]);
 
     async function fetchFinancialData() {
         if (!tenant?.id) return;
         setLoading(true);
 
-        const now = new Date();
-        let fromDate: string | null = null;
-
-        if (period === "month") {
-            fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        } else if (period === "year") {
-            fromDate = new Date(now.getFullYear(), 0, 1).toISOString();
-        }
+        const fromBound = fromISO;
+        const toBound = toISO;
 
         function applyFilter(query: any) {
             let q = query.eq("tenant_id", tenant!.id);
-            if (fromDate) q = q.gte("created_at", fromDate);
+            if (fromBound) q = q.gte("created_at", fromBound);
+            if (toBound) q = q.lte("created_at", toBound);
             if (selectedVehicleId) q = q.eq("vehicle_id", selectedVehicleId);
             return q;
         }
@@ -128,11 +125,7 @@ export function FinancialDashboard() {
 
     const maxValue = Math.max(...categories.map((c) => c.total), 1);
 
-    const periodLabel = {
-        month: "Este mês",
-        year: "Este ano",
-        all: "Todo período",
-    }[period];
+    const periodLabel = dateFilterLabel;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -142,29 +135,15 @@ export function FinancialDashboard() {
                         <h1 className="text-2xl font-bold text-gray-900">Dashboard Financeiro</h1>
                         <p className="text-sm text-gray-500 mt-0.5">{tenant?.name} — {periodLabel}</p>
                     </div>
-                    {/* Period & Vehicle filters */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter 
                             value={selectedVehicleId} 
                             onChange={setSelectedVehicleId} 
                         />
-                        <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                        {(["month", "year", "all"] as const).map((p) => (
-                            <button
-                                key={p}
-                                onClick={() => setPeriod(p)}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${period === p
-                                        ? "bg-white text-gray-900 shadow-sm"
-                                        : "text-gray-500 hover:text-gray-700"
-                                    }`}
-                            >
-                                {p === "month" ? "Mês" : p === "year" ? "Ano" : "Tudo"}
-                            </button>
-                        ))}
+                        <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
                     </div>
                 </div>
-            </div>
-        </header>
+            </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {loading ? (

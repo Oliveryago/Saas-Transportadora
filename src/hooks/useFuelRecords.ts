@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { FuelRecord } from "../types";
+import { resolveDateFilter } from "./useDateFilter";
+import type { DateFilter } from "../types";
 
-export function useFuelRecords(vehicleId?: string) {
+export function useFuelRecords(vehicleId?: string, dateFilter?: DateFilter | null) {
   const { tenant, user } = useAuth();
   const [records, setRecords] = useState<FuelRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,10 @@ export function useFuelRecords(vehicleId?: string) {
         query = query.eq("vehicle_id", vehicleId);
       }
 
+      const { fromISO, toISO } = resolveDateFilter(dateFilter ?? null);
+      if (fromISO) query = query.gte("date", fromISO);
+      if (toISO) query = query.lte("date", toISO);
+
       const { data, error: err } = await query.order("date", { ascending: false });
 
       if (err) throw err;
@@ -34,7 +40,7 @@ export function useFuelRecords(vehicleId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [tenant, user, vehicleId]);
+  }, [tenant, user, vehicleId, dateFilter]);
 
   useEffect(() => {
     fetchRecords();

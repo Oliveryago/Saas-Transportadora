@@ -8,12 +8,15 @@ import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell, 
 import OilChangeModal from "../components/oilchange/OilChangeModal";
 import { OIL_TYPE_LABELS } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function OilChange() {
     const { user, signOut, tenant } = useAuth();
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-    const { alerts, deleteAlert, getPendingAlerts } = useOilChangeAlerts(selectedVehicleId);
+    const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
+    const { alerts, deleteAlert, getPendingAlerts } = useOilChangeAlerts(selectedVehicleId, dateFilter);
     const { vehicles } = useVehicles();
     const { getLatestKmByVehicle } = useFuelRecords(selectedVehicleId);
     const navigate = useNavigate();
@@ -90,6 +93,7 @@ export function OilChange() {
                                 value={selectedVehicleId} 
                                 onChange={setSelectedVehicleId} 
                             />
+                            <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
                             <div className="text-right">
                                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                                 <p className="text-xs text-gray-500">{tenant?.name}</p>

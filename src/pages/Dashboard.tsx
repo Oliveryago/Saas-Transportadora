@@ -14,14 +14,17 @@ import {
 import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
 import { Skeleton } from "../components/shared/SkeletonLoader";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 
 export function Dashboard() {
   const { user, tenant, signOut, isSuperAdmin, isImpersonating, impersonatedTenant, stopImpersonation } = useAuth();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
   const {
     loading, metrics, costByCategory, vehicleConsumption,
     fleetAvgConsumption, dailyFuel, alertItems, recentActivity
-  } = useDashboardMetrics(selectedVehicleId);
+  } = useDashboardMetrics(selectedVehicleId, dateFilter);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -172,6 +175,7 @@ export function Dashboard() {
                 value={selectedVehicleId} 
                 onChange={setSelectedVehicleId} 
               />
+              <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                 <p className="text-xs text-gray-500">{tenant?.name}</p>

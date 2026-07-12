@@ -9,13 +9,16 @@ import { generateMaintenanceOS } from "../services/documentGenerator";
 import { urlToDataURL } from "../services/companySettingsHelper";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
+import { DateFilterPicker } from "../components/shared/DateFilter";
+import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Maintenance() {
     const { user, signOut, tenant } = useAuth();
     const { settings: companySettings } = useCompanySettings();
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-    const { records, deleteRecord, refetch } = useMaintenanceRecords(selectedVehicleId);
+    const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
+    const { records, deleteRecord, refetch } = useMaintenanceRecords(selectedVehicleId, dateFilter);
     const { vehicles } = useVehicles();
     const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
@@ -100,6 +103,7 @@ export function Maintenance() {
                                 value={selectedVehicleId} 
                                 onChange={setSelectedVehicleId} 
                             />
+                            <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
                             <div className="text-right">
                                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                                 <p className="text-xs text-gray-500">{tenant?.name}</p>

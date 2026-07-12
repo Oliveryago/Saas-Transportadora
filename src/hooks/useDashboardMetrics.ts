@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { FuelRecord } from "../types";
+import { resolveDateFilter } from "./useDateFilter";
+import type { DateFilter } from "../types";
 
 interface DashboardMetrics {
   vehiclesActive: number;
@@ -60,7 +62,7 @@ interface AlertItem {
   path: string;
 }
 
-export function useDashboardMetrics(vehicleId?: string) {
+export function useDashboardMetrics(vehicleId?: string, dateFilter?: DateFilter | null) {
   const { tenant } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,33 +85,42 @@ export function useDashboardMetrics(vehicleId?: string) {
       setLoading(true);
       setError(null);
 
-      const now = new Date();
-      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString();
+      // Resolve date bounds: use filter if active, else fall back to last 6 months
+      const { fromISO, toISO } = resolveDateFilter(dateFilter ?? null);
+      const sixMonthsAgo = new Date(new Date().getFullYear(), new Date().getMonth() - 6, 1).toISOString();
+      const fromBound = fromISO ?? sixMonthsAgo;
+      const toBound = toISO;
 
       let vehiclesQuery = supabase.from("vehicles").select("id, license_plate, model, current_km, active").eq("tenant_id", tenant.id);
       if (vehicleId) vehiclesQuery = vehiclesQuery.eq("id", vehicleId);
 
-      let fuelQuery = supabase.from("fuel_records").select("id, vehicle_id, liters, value_brl, km_digital, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let fuelQuery = supabase.from("fuel_records").select("id, vehicle_id, liters, value_brl, km_digital, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) fuelQuery = fuelQuery.lte("created_at", toBound);
       if (vehicleId) fuelQuery = fuelQuery.eq("vehicle_id", vehicleId);
       fuelQuery = fuelQuery.order("created_at", { ascending: false });
 
-      let maintenanceQuery = supabase.from("maintenance_records").select("id, vehicle_id, value_brl, type, description, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let maintenanceQuery = supabase.from("maintenance_records").select("id, vehicle_id, value_brl, type, description, date, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) maintenanceQuery = maintenanceQuery.lte("created_at", toBound);
       if (vehicleId) maintenanceQuery = maintenanceQuery.eq("vehicle_id", vehicleId);
       maintenanceQuery = maintenanceQuery.order("created_at", { ascending: false });
 
       let oilQuery = supabase.from("oil_change_alerts").select("id, vehicle_id, oil_type, alert_type, km_interval, days_interval, last_change_km, last_change_date, alert_status").eq("tenant_id", tenant.id).eq("alert_status", "active");
       if (vehicleId) oilQuery = oilQuery.eq("vehicle_id", vehicleId);
 
-      let tireQuery = supabase.from("tire_changes").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let tireQuery = supabase.from("tire_changes").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) tireQuery = tireQuery.lte("created_at", toBound);
       if (vehicleId) tireQuery = tireQuery.eq("vehicle_id", vehicleId);
 
-      let washQuery = supabase.from("washing_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let washQuery = supabase.from("washing_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) washQuery = washQuery.lte("created_at", toBound);
       if (vehicleId) washQuery = washQuery.eq("vehicle_id", vehicleId);
 
-      let tollQuery = supabase.from("toll_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let tollQuery = supabase.from("toll_records").select("id, vehicle_id, value_brl, date, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) tollQuery = tollQuery.lte("created_at", toBound);
       if (vehicleId) tollQuery = tollQuery.eq("vehicle_id", vehicleId);
 
-      let parkQuery = supabase.from("parking_records").select("id, vehicle_id, value_brl, entry_date, created_at").eq("tenant_id", tenant.id).gte("created_at", sixMonthsAgo);
+      let parkQuery = supabase.from("parking_records").select("id, vehicle_id, value_brl, entry_date, created_at").eq("tenant_id", tenant.id).gte("created_at", fromBound);
+      if (toBound) parkQuery = parkQuery.lte("created_at", toBound);
       if (vehicleId) parkQuery = parkQuery.eq("vehicle_id", vehicleId);
 
       let insuranceQuery = supabase.from("insurance_records").select("id, vehicle_id, expiration_date, insurer, created_at").eq("tenant_id", tenant.id);
@@ -154,7 +165,7 @@ export function useDashboardMetrics(vehicleId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [tenant, vehicleId]);
+  }, [tenant, vehicleId, dateFilter]);
 
   useEffect(() => {
     fetchAll();

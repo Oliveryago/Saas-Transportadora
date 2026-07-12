@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-11] — Feature: Múltiplos Itens Adicionais no Abastecimento
+### Modificado
+- `src/types/index.ts`: Adicionado campo `additional_items?: Array<{description, value}>` ao tipo `FuelRecord`
+- `src/hooks/useFuelRecords.ts`: Query atualizada para incluir `additional_items` no select
+- `src/components/fuel/FuelModal.tsx`: Seção de Adicionais convertida para lista dinâmica com botão `+` e remoção por item (gestor e motorista)
+- `src/pages/DriverFuel.tsx`: Mesma lista dinâmica implementada na interface mobile do motorista
+### Banco de Dados
+- Coluna `additional_items JSONB DEFAULT '[]'` adicionada na tabela `fuel_records`
+### Backward Compatibility
+- Registros antigos com `additional_item_description` são migrados automaticamente para o novo formato no carregamento
+
 ## [2026-07-11] — Feature: SuperAdmin RBAC Helpers e Roteamento
 ### Modificado
 - `src/contexts/AuthContext.tsx`: Adicionados helpers `isAdmin`, `isManager`, `isDriver` e `userRole` para simplificar verificações de papéis (Roles).
