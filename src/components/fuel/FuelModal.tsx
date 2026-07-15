@@ -12,7 +12,7 @@ interface FuelModalProps {
   onClose: () => void;
   editingRecord?: FuelRecord | null;
   vehicles: Vehicle[];
-  addRecord: (record: Omit<FuelRecord, "id" | "created_at" | "updated_at">) => Promise<FuelRecord>;
+  addRecord: (record: Omit<FuelRecord, "id" | "created_at" | "updated_at" | "tenant_id" | "driver_id">) => Promise<FuelRecord>;
   updateRecord: (id: string, updates: Partial<FuelRecord>) => Promise<FuelRecord>;
 }
 
@@ -188,12 +188,12 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
           ...dataToSave,
           km_photo_url: undefined,
           validations: { verified: false, issues: [] },
-          driver_id: undefined,
-        } as any);
+        });
       }
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar");
+    } catch (err: any) {
+      console.error("Erro ao salvar abastecimento:", err);
+      setError(err?.message || "Erro ao salvar");
     } finally {
       setLoading(false);
     }
