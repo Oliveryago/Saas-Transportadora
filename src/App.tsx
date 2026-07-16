@@ -32,6 +32,7 @@ const DriverHome = lazy(() => import("./pages/DriverHome").then(m => ({ default:
 const DriverFuel = lazy(() => import("./pages/DriverFuel").then(m => ({ default: m.DriverFuel })));
 const DriverHistory = lazy(() => import("./pages/DriverHistory").then(m => ({ default: m.DriverHistory })));
 const DriverProfile = lazy(() => import("./pages/DriverProfile").then(m => ({ default: m.DriverProfile })));
+const EstoquePage = lazy(() => import("./pages/Estoque").then(m => ({ default: m.EstoquePage })));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
@@ -73,6 +74,7 @@ function App() {
           <Route path="/financial" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><FinancialDashboard /></LazyPage></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Reports /></LazyPage></ProtectedRoute>} />
           <Route path="/drivers" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><Drivers /></LazyPage></ProtectedRoute>} />
+          <Route path="/estoque" element={<ProtectedRoute allowedRoles={["superadmin", "admin", "manager"]}><LazyPage><EstoquePage /></LazyPage></ProtectedRoute>} />
           <Route path="/superadmin" element={<ProtectedRoute allowedRoles={["superadmin"]}><LazyPage><SuperAdmin /></LazyPage></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
           </Routes>

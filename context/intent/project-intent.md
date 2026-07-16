@@ -15,37 +15,33 @@ Plataforma funcional e deployada na Vercel com múltiplos módulos operacionais 
 ## Current Features
 
 - **Autenticação e RBAC** — Login, roles (driver/manager/admin/superadmin), sessão com timeout
-- **Dashboard** — Métricas consolidadas, alertas de troca de óleo, visão financeira
-- **Frota (Fleet)** — Cadastro de veículos e implementos (carretas)
-- **Abastecimento (Fuel)** — Registro de combustível com foto de nota, Arla 32, descontos
-- **Manutenção** — Ordens de serviço, peças, valores
-- **Troca de Óleo** — Alertas por KM e data
-- **Troca de Pneus** — Histórico e próxima troca por KM
-- **Lavagem** — Registro de lavagens por tipo
-- **Pedágios (Tolls)** — Lançamento de pedágios por viagem/UF
-- **Estacionamento (Parking)** — Controle de estacionamento
-- **Rodízio (Rotation)** — Controle de rodízio de pneus
-- **Seguros (Insurance)** — Apólices e vencimentos
-- **Sinistros (Accidents)** — Registro de acidentes
-- **Motoristas (Drivers)** — Cadastro com OCR de CNH, vínculo com veículo
-- **Fornecedores (Suppliers)** — Cadastro de postos, oficinas, etc.
-- **Financeiro** — Dashboard financeiro consolidado
-- **Relatórios** — Exportação PDF/Excel
-- **SuperAdmin** — Painel para gestão de todos os tenants
-- **Interface Motorista** — Telas mobile-first para registro em campo (em implementação)
+- **Dashboard Operacional** — [Feature: Dashboard](feature-dashboard.md)
+- **Frota (Fleet)** — [Feature: Gestão de Frota](feature-frota.md)
+- **Abastecimento (Fuel)** — [Feature: Abastecimento](feature-abastecimento.md), [Feature: Dupla Bomba](feature-dupla-bomba.md)
+- **Manutenção** — [Feature: Manutenção](feature-manutencao.md)
+- **Troca de Óleo** — [Feature: Troca de Óleo](feature-troca-oleo.md)
+- **Troca de Pneus** — [Feature: Troca de Pneus](feature-pneus.md)
+- **Lavagem** — [Feature: Lavagem](feature-lavagem.md)
+- **Pedágios (Tolls)** — [Feature: Pedágios](feature-pedagios.md)
+- **Estacionamento (Parking)** — [Feature: Estacionamento](feature-estacionamento.md)
+- **Rodízio (Rotation)** — [Feature: Rodízio](feature-rodizio.md)
+- **Seguros (Insurance)** — [Feature: Seguros](feature-seguros.md)
+- **Sinistros (Accidents)** — [Feature: Sinistros](feature-sinistros.md)
+- **Motoristas (Drivers)** — [Feature: Motoristas](feature-motoristas.md), [Feature: Motorista Interface](feature-motorista-interface.md)
+- **Fornecedores (Suppliers)** — [Feature: Fornecedores](feature-fornecedores.md)
+- **Financeiro** — [Feature: Dashboard Financeiro](feature-financeiro.md)
+- **Relatórios** — [Feature: Relatórios](feature-relatorios.md)
+- **SuperAdmin** — [Feature: SuperAdmin](feature-superadmin.md)
+- **Configurações** — [Feature: Configurações](feature-configuracoes.md)
 
 ## Status
 
 - **Created**: 2026-06-23 (Phase: Intent — retroativo)
 - **Status**: Active
-- **Note**: Documentado a partir de codebase existente
+- **Note**: Documentado a partir de codebase existente e atualizado 2026-07-15.
 
 ## Related
 
 - [Decision: Tech Stack](../decisions/001-tech-stack.md)
 - [Decision: Multi-Tenant RBAC](../decisions/002-multitenant-rbac.md)
 - [Decision: Auth e Roles](../decisions/003-auth-roles.md)
-- [Feature: Abastecimento](feature-abastecimento.md)
-- [Feature: Dupla Bomba](feature-dupla-bomba.md)
-- [Feature: Motorista Interface](feature-motorista-interface.md)
-- [Feature: SuperAdmin](feature-superadmin.md)

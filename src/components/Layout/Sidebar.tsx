@@ -19,7 +19,8 @@ import {
     BarChart2,
     ArrowLeft,
     Search,
-    UserCircle
+    UserCircle,
+    Package
 } from "lucide-react";
 import { NotificationBell } from "../shared/NotificationBell";
 
@@ -37,6 +38,7 @@ export function Sidebar() {
         { to: "/oil-change", icon: Droplet, label: "Troca de Óleo", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/tire-change", icon: Disc, label: "Troca de Pneus", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/rotation", icon: RefreshCcw, label: "Rodízio", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/estoque", icon: Package, label: "Estoque", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/washing", icon: SprayCan, label: "Lavagem", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/parking", icon: Car, label: "Estacionamento", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/tolls", icon: Ticket, label: "Pedágios", allowedRoles: ["superadmin", "admin", "manager"] },

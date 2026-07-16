@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { User, Tenant } from "../types";
+import type { User, Tenant, UserRole } from "../types";
 import { logAudit } from "../services/auditLogger";
 
 interface AuthContextType {

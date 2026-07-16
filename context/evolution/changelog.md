@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-07-16] — Implementação do Módulo de Estoque
+
+**Alterações:**
+- Criação das tabelas `itens_estoque`, `movimentacoes_estoque`, `manutencao_itens` e `fornecedores` (com RLS via `tenant_id`).
+- Criação dos tipos `ItemEstoque`, `MovimentacaoEstoque` e inputs em `src/types/estoque.ts`.
+- Hook `useEstoque` implementado para CRUD e cálculo de saldo e custo médio.
+- Criação da página `/estoque` e do modal `NovaEntradaModal` em `src/components/estoque/NovaEntradaModal.tsx`.
+- Rotas atualizadas no `App.tsx` (com lazy loading) e item adicionado à Sidebar.
+
+## [2026-07-15] — Expansão do Context Mesh
+
+**Alterações:**
+- Criação de features retroativas para cobrir 100% dos módulos do sistema: Frota, Manutenção, Troca de Pneus, Lavagem, Pedágios, Estacionamento, Rodízio, Seguros, Sinistros, Fornecedores, Dashboard, Financeiro, Relatórios e Configurações.
+- Adição de decisões arquiteturais: PWA Mobile (011), Relatórios PDF Client-Side (012), Rotas Lazy Loading (013).
+- Adição de padrões estruturais: Auth Context, Lazy Loading Routes, Session Timeout, Rate Limit.
+- Atualização do `project-intent.md` mapeando os arquivos recém-criados.
+
 ## [2026-07-05] — Bugfix: Upload de Foto no PhotoUpload (Abastecimento)
 
 **Problema:** Foto do comprovante fiscal não persistia após salvar o abastecimento.
