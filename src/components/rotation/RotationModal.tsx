@@ -3,6 +3,8 @@ import { X } from "lucide-react";
 import { useRotationRecords } from "../../hooks/useRotationRecords";
 import type { RotationRecord, Vehicle } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
+import { SeletorOrigemCusto } from "../estoque/SeletorOrigemCusto";
+import { supabase } from "../../lib/supabase";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: RotationRecord | null; vehicles: Vehicle[]; }
 
@@ -13,6 +15,9 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
     const [currentOdometer, setCurrentOdometer] = useState(0);
     const [nextRotationKm, setNextRotationKm] = useState(0);
     const [notes, setNotes] = useState("");
+    const [valorStr, setValorStr] = useState("0");
+    const [itemEstoqueSelecionado, setItemEstoqueSelecionado] = useState<string | null>(null);
+    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +26,14 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
             setVehicleId(editingRecord.vehicle_id); setDate(editingRecord.date);
             setCurrentOdometer(editingRecord.current_odometer || 0); setNextRotationKm(editingRecord.next_rotation_km || 0);
             setNotes(editingRecord.notes || "");
+            setValorStr(String((editingRecord as any).value_brl || 0));
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setDate(getLocalDateString());
             setCurrentOdometer(0); setNextRotationKm(0); setNotes("");
+            setValorStr("0");
         }
+        setItemEstoqueSelecionado(null);
+        setQuantidadeEstoque(0);
         setError(null);
     }, [editingRecord, open, vehicles]);
 
@@ -33,9 +42,36 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
         if (!vehicleId) { setError("Selecione um veículo"); return; }
         setLoading(true);
         try {
-            const data = { vehicle_id: vehicleId, date, current_odometer: currentOdometer || undefined, next_rotation_km: nextRotationKm || undefined, notes: notes || undefined };
-            if (editingRecord) await updateRecord(editingRecord.id, data);
-            else await addRecord(data as any);
+            const valueBrl = parseFloat(valorStr) || 0;
+            const data = {
+                vehicle_id: vehicleId,
+                date,
+                current_odometer: currentOdometer || undefined,
+                next_rotation_km: nextRotationKm || undefined,
+                notes: notes || undefined,
+                ...(valueBrl ? { value_brl: valueBrl } : {}),
+            };
+
+            let savedId: string | undefined;
+            if (editingRecord) {
+                const updated = await updateRecord(editingRecord.id, data);
+                savedId = updated?.id ?? editingRecord.id;
+            } else {
+                const created = await addRecord(data as any);
+                savedId = created?.id;
+            }
+
+            // Baixa no estoque se necessário (sem lançamento financeiro extra)
+            if (itemEstoqueSelecionado && quantidadeEstoque > 0 && savedId) {
+                await supabase.rpc('registrar_saida_estoque', {
+                    p_item_id: itemEstoqueSelecionado,
+                    p_quantidade: quantidadeEstoque,
+                    p_vehicle_id: vehicleId || null,
+                    p_maintenance_id: savedId,
+                    p_observacao: 'Baixa automatica via rodizio',
+                });
+            }
+
             onClose();
         } catch (err) { setError(err instanceof Error ? err.message : "Erro ao salvar"); }
         finally { setLoading(false); }
@@ -77,6 +113,15 @@ function RotationModal({ open, onClose, editingRecord, vehicles }: Props) {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
                         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
+                    <SeletorOrigemCusto
+                        valor={valorStr}
+                        onChangeValor={setValorStr}
+                        onSelecionarItemEstoque={(id, qtd) => {
+                            setItemEstoqueSelecionado(id);
+                            setQuantidadeEstoque(qtd);
+                        }}
+                        labelValor="Custo do rodízio (R$)"
+                    />
                     {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
                     <div className="flex gap-3 pt-4">
                         <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>

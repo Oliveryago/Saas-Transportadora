@@ -5,6 +5,8 @@ import { useVehicles } from "../../hooks/useVehicles";
 import { useImplements } from "../../hooks/useImplements";
 import type { MaintenanceRecord } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
+import { SeletorOrigemCusto } from "../estoque/SeletorOrigemCusto";
+import { supabase } from "../../lib/supabase";
 
 interface MaintenanceModalProps {
     open: boolean;
@@ -19,7 +21,9 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
 
     const [type, setType] = useState("");
     const [description, setDescription] = useState("");
-    const [valueBrl, setValueBrl] = useState(0);
+    const [valorStr, setValorStr] = useState("0");
+    const [itemEstoqueSelecionado, setItemEstoqueSelecionado] = useState<string | null>(null);
+    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
     const [km, setKm] = useState(0);
     const [date, setDate] = useState(getLocalDateString());
     const [vehicleId, setVehicleId] = useState("");
@@ -34,7 +38,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
         if (editingRecord) {
             setType(editingRecord.type);
             setDescription(editingRecord.description || "");
-            setValueBrl(editingRecord.value_brl || 0);
+            setValorStr(String(editingRecord.value_brl || 0));
             setKm(editingRecord.km || 0);
             setDate(editingRecord.date);
             setVehicleId(editingRecord.vehicle_id || "");
@@ -43,13 +47,15 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
         } else {
             setType("");
             setDescription("");
-            setValueBrl(0);
+            setValorStr("0");
             setKm(0);
             setDate(getLocalDateString());
             setVehicleId("");
             setImplementId("");
             setParts([]);
         }
+        setItemEstoqueSelecionado(null);
+        setQuantidadeEstoque(0);
         setError(null);
     }, [editingRecord, open]);
 
@@ -70,6 +76,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
         setLoading(true);
 
         try {
+            const valueBrl = parseFloat(valorStr) || 0;
             const data = {
                 type,
                 description: description || undefined,
@@ -81,11 +88,26 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                 parts,
             };
 
+            let savedId: string | undefined;
             if (editingRecord) {
-                await updateRecord(editingRecord.id, data);
+                const updated = await updateRecord(editingRecord.id, data);
+                savedId = updated?.id ?? editingRecord.id;
             } else {
-                await addRecord(data as any);
+                const created = await addRecord(data as any);
+                savedId = created?.id;
             }
+
+            // Baixa no estoque se necessário (sem lançamento financeiro extra)
+            if (itemEstoqueSelecionado && quantidadeEstoque > 0 && savedId) {
+                await supabase.rpc('registrar_saida_estoque', {
+                    p_item_id: itemEstoqueSelecionado,
+                    p_quantidade: quantidadeEstoque,
+                    p_vehicle_id: vehicleId || null,
+                    p_maintenance_id: savedId,
+                    p_observacao: 'Baixa automatica via manutencao',
+                });
+            }
+
             onClose();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erro ao salvar");
@@ -181,28 +203,25 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-                            <input
-                                type="number"
-                                value={valueBrl}
-                                onChange={(e) => setValueBrl(parseFloat(e.target.value))}
-                                step="0.01"
-                                min="0"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
-                            <input
-                                type="number"
-                                value={km}
-                                onChange={(e) => setKm(parseInt(e.target.value))}
-                                min="0"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
+                    <SeletorOrigemCusto
+                        valor={valorStr}
+                        onChangeValor={setValorStr}
+                        onSelecionarItemEstoque={(id, qtd) => {
+                            setItemEstoqueSelecionado(id);
+                            setQuantidadeEstoque(qtd);
+                        }}
+                        labelValor="Valor (R$)"
+                    />
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
+                        <input
+                            type="number"
+                            value={km}
+                            onChange={(e) => setKm(parseInt(e.target.value))}
+                            min="0"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                     </div>
 
                     {/* Parts section */}

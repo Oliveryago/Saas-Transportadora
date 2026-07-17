@@ -3,6 +3,8 @@ import { X } from "lucide-react";
 import { useTireChanges } from "../../hooks/useTireChanges";
 import type { TireChange, Vehicle } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
+import { SeletorOrigemCusto } from "../estoque/SeletorOrigemCusto";
+import { supabase } from "../../lib/supabase";
 
 interface Props { open: boolean; onClose: () => void; editingRecord?: TireChange | null; vehicles: Vehicle[]; }
 
@@ -14,7 +16,9 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
     const [quantity, setQuantity] = useState(1);
     const [kmAtChange, setKmAtChange] = useState(0);
     const [nextChangeKm, setNextChangeKm] = useState(0);
-    const [valueBrl, setValueBrl] = useState(0);
+    const [valorStr, setValorStr] = useState("0");
+    const [itemEstoqueSelecionado, setItemEstoqueSelecionado] = useState<string | null>(null);
+    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
     const [hasDiscount, setHasDiscount] = useState(false);
     const [discountValue, setDiscountValue] = useState(0);
     const [date, setDate] = useState(getLocalDateString());
@@ -26,14 +30,16 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
         if (editingRecord) {
             setVehicleId(editingRecord.vehicle_id); setBrand(editingRecord.brand || ""); setDimension(editingRecord.dimension || "");
             setQuantity(editingRecord.quantity || 1); setKmAtChange(editingRecord.km_at_change || 0);
-            setNextChangeKm(editingRecord.next_change_km || 0); setValueBrl(editingRecord.value_brl || 0);
+            setNextChangeKm(editingRecord.next_change_km || 0); setValorStr(String(editingRecord.value_brl || 0));
             setHasDiscount(editingRecord.has_discount || false); setDiscountValue(editingRecord.discount_value || 0);
             setDate(editingRecord.date); setNotes(editingRecord.notes || "");
         } else {
             setVehicleId(vehicles.length > 0 ? vehicles[0].id : ""); setBrand(""); setDimension(""); setQuantity(1);
-            setKmAtChange(0); setNextChangeKm(0); setValueBrl(0); setHasDiscount(false); setDiscountValue(0);
+            setKmAtChange(0); setNextChangeKm(0); setValorStr("0"); setHasDiscount(false); setDiscountValue(0);
             setDate(getLocalDateString()); setNotes("");
         }
+        setItemEstoqueSelecionado(null);
+        setQuantidadeEstoque(0);
         setError(null);
     }, [editingRecord, open, vehicles]);
 
@@ -42,9 +48,29 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
         if (!vehicleId) { setError("Selecione um veículo"); return; }
         setLoading(true);
         try {
+            const valueBrl = parseFloat(valorStr) || 0;
             const data = { vehicle_id: vehicleId, brand: brand || undefined, dimension: dimension || undefined, quantity, km_at_change: kmAtChange || undefined, next_change_km: nextChangeKm || undefined, value_brl: valueBrl || undefined, has_discount: hasDiscount, discount_value: hasDiscount ? discountValue : undefined, date, notes: notes || undefined };
-            if (editingRecord) await updateRecord(editingRecord.id, data);
-            else await addRecord(data as any);
+
+            let savedId: string | undefined;
+            if (editingRecord) {
+                const updated = await updateRecord(editingRecord.id, data);
+                savedId = updated?.id ?? editingRecord.id;
+            } else {
+                const created = await addRecord(data as any);
+                savedId = created?.id;
+            }
+
+            // Baixa no estoque se necessário (sem lançamento financeiro extra)
+            if (itemEstoqueSelecionado && quantidadeEstoque > 0 && savedId) {
+                await supabase.rpc('registrar_saida_estoque', {
+                    p_item_id: itemEstoqueSelecionado,
+                    p_quantidade: quantidadeEstoque,
+                    p_vehicle_id: vehicleId || null,
+                    p_maintenance_id: savedId,
+                    p_observacao: 'Baixa automatica via troca de pneu',
+                });
+            }
+
             onClose();
         } catch (err) { setError(err instanceof Error ? err.message : "Erro ao salvar"); }
         finally { setLoading(false); }
@@ -96,10 +122,15 @@ function TireChangeModal({ open, onClose, editingRecord, vehicles }: Props) {
                             <input type="number" value={nextChangeKm || ""} onChange={(e) => setNextChangeKm(parseInt(e.target.value) || 0)} min="0" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (R$)</label>
-                        <input type="number" value={valueBrl || ""} onChange={(e) => setValueBrl(parseFloat(e.target.value) || 0)} step="0.01" min="0" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
+                    <SeletorOrigemCusto
+                        valor={valorStr}
+                        onChangeValor={setValorStr}
+                        onSelecionarItemEstoque={(id, qtd) => {
+                            setItemEstoqueSelecionado(id);
+                            setQuantidadeEstoque(qtd);
+                        }}
+                        labelValor="Valor Total (R$)"
+                    />
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" checked={hasDiscount} onChange={(e) => setHasDiscount(e.target.checked)} className="sr-only peer" />
