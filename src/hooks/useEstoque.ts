@@ -46,7 +46,7 @@ export function useEstoque() {
   const editarItem = useCallback(
     async (
       id: string,
-      updates: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo'>
+      updates: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo' | 'estoque_atual' | 'custo_medio'>
     ) => {
       const { error } = await supabase
         .from('itens_estoque')

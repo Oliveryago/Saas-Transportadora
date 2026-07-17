@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useEstoque } from '../../hooks/useEstoque';
 import type { CategoriaItem, ItemEstoque, UnidadeMedida } from '../../types/estoque';
@@ -31,8 +31,21 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
   const [categoria, setCategoria] = useState<CategoriaItem>(item.categoria);
   const [unidade, setUnidade] = useState<UnidadeMedida>(item.unidade_medida);
   const [estoqueMinimo, setEstoqueMinimo] = useState(String(item.estoque_minimo));
+  const [estoqueAtual, setEstoqueAtual] = useState(String(item.estoque_atual));
+  const [custoMedio, setCustoMedio] = useState(String(item.custo_medio));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  // Reinicializa os campos sempre que o item mudar
+  useEffect(() => {
+    setNome(item.nome);
+    setCategoria(item.categoria);
+    setUnidade(item.unidade_medida);
+    setEstoqueMinimo(String(item.estoque_minimo));
+    setEstoqueAtual(String(item.estoque_atual));
+    setCustoMedio(String(item.custo_medio));
+    setErro(null);
+  }, [item.id]);
 
   async function salvar() {
     setErro(null);
@@ -47,6 +60,8 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
         categoria,
         unidade_medida: unidade,
         estoque_minimo: Number(estoqueMinimo) || 0,
+        estoque_atual: Number(estoqueAtual) || 0,
+        custo_medio: Number(custoMedio) || 0,
       });
       onSaved();
     } catch (e) {
@@ -128,19 +143,31 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
             </p>
           </div>
 
-          {/* Info somente leitura */}
-          <div className="bg-slate-50 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs">
+          {/* Saldo atual e Custo médio — editáveis */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-slate-400">Saldo atual</p>
-              <p className="font-semibold text-slate-800">
-                {item.estoque_atual} {item.unidade_medida}
-              </p>
+              <label className="text-xs font-medium text-slate-500">Saldo atual</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={estoqueAtual}
+                onChange={(e) => setEstoqueAtual(e.target.value)}
+                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Corrija se o saldo estiver errado.</p>
             </div>
             <div>
-              <p className="text-slate-400">Custo médio</p>
-              <p className="font-semibold text-slate-800">
-                {item.custo_medio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
+              <label className="text-xs font-medium text-slate-500">Custo médio (R$)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={custoMedio}
+                onChange={(e) => setCustoMedio(e.target.value)}
+                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Corrija se o custo estiver errado.</p>
             </div>
           </div>
 
