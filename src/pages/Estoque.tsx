@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AlertTriangle, CircleDot, Droplet, Filter, Package, Plus, Zap } from 'lucide-react';
+import { AlertTriangle, CircleDot, Droplet, Filter, Package, Pencil, Plus, Zap } from 'lucide-react';
 import { useEstoque } from '../hooks/useEstoque';
 import type { CategoriaItem, ItemEstoque } from '../types/estoque';
 import { NovaEntradaModal } from '../components/estoque/NovaEntradaModal';
+import { EditarItemModal } from '../components/estoque/EditarItemModal';
 
 const ICONE_CATEGORIA: Record<CategoriaItem, typeof Droplet> = {
   oleo: Droplet,
@@ -29,6 +30,7 @@ function formatarMoeda(valor: number) {
 export function EstoquePage() {
   const { itens, loading, error, itensAbaixoDoMinimo, valorTotalEmEstoque, recarregar } = useEstoque();
   const [modalAberto, setModalAberto] = useState(false);
+  const [itemEditando, setItemEditando] = useState<ItemEstoque | null>(null);
 
   const categorias = Array.from(new Set(itens.map((item) => item.categoria)));
 
@@ -104,27 +106,37 @@ export function EstoquePage() {
               <th className="px-4 py-2.5 font-normal">Categoria</th>
               <th className="px-4 py-2.5 font-normal">Saldo</th>
               <th className="px-4 py-2.5 font-normal">Custo médio</th>
+              <th className="px-4 py-2.5 font-normal w-10"></th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td className="px-4 py-4 text-slate-400" colSpan={4}>Carregando...</td>
+                <td className="px-4 py-4 text-slate-400" colSpan={5}>Carregando...</td>
               </tr>
             )}
             {error && (
               <tr>
-                <td className="px-4 py-4 text-red-500" colSpan={4}>{error}</td>
+                <td className="px-4 py-4 text-red-500" colSpan={5}>{error}</td>
               </tr>
             )}
             {itens.map((item: ItemEstoque) => (
-              <tr key={item.id} className="border-b border-slate-50 last:border-0">
+              <tr key={item.id} className="border-b border-slate-50 last:border-0 group">
                 <td className="px-4 py-2.5">{item.nome}</td>
                 <td className="px-4 py-2.5 text-slate-500">{item.categoria}</td>
                 <td className={`px-4 py-2.5 ${item.estoque_atual <= item.estoque_minimo ? 'text-red-600 font-medium' : ''}`}>
                   {item.estoque_atual} {item.unidade_medida}
                 </td>
                 <td className="px-4 py-2.5">{formatarMoeda(item.custo_medio)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => setItemEditando(item)}
+                    title="Editar item"
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -137,6 +149,17 @@ export function EstoquePage() {
           onClose={() => setModalAberto(false)}
           onSaved={() => {
             setModalAberto(false);
+            recarregar();
+          }}
+        />
+      )}
+
+      {itemEditando && (
+        <EditarItemModal
+          item={itemEditando}
+          onClose={() => setItemEditando(null)}
+          onSaved={() => {
+            setItemEditando(null);
             recarregar();
           }}
         />

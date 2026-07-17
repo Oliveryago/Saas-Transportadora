@@ -43,6 +43,21 @@ export function useEstoque() {
     [carregarItens]
   );
 
+  const editarItem = useCallback(
+    async (
+      id: string,
+      updates: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo'>
+    ) => {
+      const { error } = await supabase
+        .from('itens_estoque')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+      await carregarItens();
+    },
+    [carregarItens]
+  );
+
   const registrarEntrada = useCallback(
     async (input: NovaEntradaInput) => {
       const { error } = await supabase.rpc('registrar_entrada_estoque', {
@@ -93,6 +108,7 @@ export function useEstoque() {
     itensAbaixoDoMinimo,
     valorTotalEmEstoque,
     criarItem,
+    editarItem,
     registrarEntrada,
     registrarSaida,
     buscarHistoricoItem,
