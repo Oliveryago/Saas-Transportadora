@@ -46,17 +46,17 @@ export function useFuelRecords(vehicleId?: string, dateFilter?: DateFilter | nul
     fetchRecords();
   }, [fetchRecords]);
 
-  const addRecord = useCallback(async (record: Omit<FuelRecord, "id" | "created_at" | "updated_at" | "tenant_id" | "driver_id">) => {
+  const addRecord = useCallback(async (record: any) => {
     try {
+      const payload = {
+        driver_id: user?.role === 'driver' ? user.id : undefined,
+        ...record,
+        tenant_id: tenant!.id,
+      };
+
       const { data, error: err } = await supabase
         .from("fuel_records")
-        .insert([
-          {
-            ...record,
-            driver_id: user!.id,
-            tenant_id: tenant!.id,
-          },
-        ])
+        .insert([payload])
         .select();
 
       if (err) {
