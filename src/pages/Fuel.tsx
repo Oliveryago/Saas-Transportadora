@@ -376,12 +376,25 @@ export function Fuel() {
                   
                 const distanceSinceRefuel = Math.max(0, currentKm - lastKm);
                 
-                const avg = avgVehicle || 0;
-                const consumed = avg > 0 ? distanceSinceRefuel / avg : 0;
+                // 2) Calcular o consumo médio utilizando TODOS os abastecimentos
+                const historicoValido = trechos.filter(t => t.kmPorLitro > 0);
+                const consumoMedio = historicoValido.length > 0
+                  ? historicoValido.reduce((total, item) => total + item.kmPorLitro, 0) / historicoValido.length
+                  : 0;
                 
-                currentFuel = Math.max(0, tankCapacity - consumed);
+                // 3) Litros consumidos
+                const litrosConsumidos = consumoMedio > 0 ? distanceSinceRefuel / consumoMedio : 0;
+                
+                // 4) Combustível restante
+                currentFuel = tankCapacity - litrosConsumidos;
+                if (currentFuel < 0) {
+                  currentFuel = 0;
+                }
+                
+                // 5) Autonomia restante
+                remainingKm = currentFuel * consumoMedio;
+                
                 fuelPercentage = Math.min(100, Math.max(0, (currentFuel / tankCapacity) * 100));
-                remainingKm = currentFuel * avg;
               }
 
               return (
