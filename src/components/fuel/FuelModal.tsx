@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useSuppliers } from "../../hooks/useSuppliers";
+import { useDrivers } from "../../hooks/useDrivers";
 import type { FuelRecord, Vehicle, FuelType } from "../../types";
 import { FUEL_TYPE_LABELS } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
@@ -12,12 +13,13 @@ interface FuelModalProps {
   onClose: () => void;
   editingRecord?: FuelRecord | null;
   vehicles: Vehicle[];
-  addRecord: (record: Omit<FuelRecord, "id" | "created_at" | "updated_at" | "tenant_id" | "driver_id">) => Promise<FuelRecord>;
+  addRecord: (record: any) => Promise<FuelRecord>;
   updateRecord: (id: string, updates: Partial<FuelRecord>) => Promise<FuelRecord>;
 }
 
 function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRecord }: FuelModalProps) {
   const { suppliers } = useSuppliers();
+  const { drivers } = useDrivers();
   const { user } = useAuth();
   const isDriver = user?.role === "driver";
 
@@ -34,6 +36,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   } = usePhotoUpload({ module: "fuel_invoices", maxPhotos: 1 });
 
   const [vehicleId, setVehicleId] = useState("");
+  const [driverId, setDriverId] = useState("");
   const [kmDigital, setKmDigital] = useState(0);
   const [litersPump1, setLitersPump1] = useState(0);
   const [litersPump2, setLitersPump2] = useState<number | "">("");
@@ -84,6 +87,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   useEffect(() => {
     if (editingRecord) {
       setVehicleId(editingRecord.vehicle_id);
+      setDriverId(editingRecord.driver_id || "");
       setDate(editingRecord.date || editingRecord.created_at?.split("T")[0] || getLocalDateString());
       setKmDigital(editingRecord.km_digital);
       // Load pump values — fallback: pump1 = total liters for legacy records
@@ -120,6 +124,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       }
     } else {
       setVehicleId(vehicles.length > 0 ? vehicles[0].id : "");
+      setDriverId("");
       setDate(getLocalDateString());
       setKmDigital(0);
       setLitersPump1(0);
@@ -146,6 +151,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
     setError(null);
 
     if (!vehicleId) { setError("Selecione um veículo"); return; }
+    if (!isDriver && !driverId) { setError("Selecione um motorista"); return; }
     if (kmDigital <= 0) { setError("O KM registrado deve ser maior que 0"); return; }
     if (litersPump1 <= 0) { setError("Litros - Bomba 1 deve ser maior que 0"); return; }
     if (typeof litersPump2 === "number" && litersPump2 < 0) { setError("Litros - Bomba 2 não pode ser negativo"); return; }
@@ -157,6 +163,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       const pump2Value = typeof litersPump2 === "number" && litersPump2 > 0 ? litersPump2 : undefined;
       const data = {
         vehicle_id: vehicleId,
+        driver_id: isDriver ? undefined : driverId, // hook handles isDriver automatically
         date: date || getLocalDateString(),
         km_digital: kmDigital,
         liters: totalLiters,           // soma das duas bombas — source of truth para relatórios
@@ -205,7 +212,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
           <h3 className="text-lg font-bold text-gray-900">
@@ -234,6 +241,20 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                 </div>
               )}
             </div>
+            
+            {!isDriver && (
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motorista *</label>
+                <select value={driverId} onChange={(e) => setDriverId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                  <option value="">Selecione o motorista</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>{d.nome_completo}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
