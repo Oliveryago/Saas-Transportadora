@@ -53,7 +53,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
   const [isFullTank, setIsFullTank] = useState(true);
   const [fuelTotalValue, setFuelTotalValue] = useState(0);
   const [arlaTotalValue, setArlaTotalValue] = useState(0);
-  const [additionalItems, setAdditionalItems] = useState<{description: string, value: number}[]>([]);
+  const [additionalItems, setAdditionalItems] = useState<{ description: string, value: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,7 +102,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
       setDiscountValue(editingRecord.discount_value || 0);
       setFuelStation(editingRecord.fuel_station || "");
       setIsFullTank(editingRecord.is_full_tank ?? true);
-      
+
       if (editingRecord.additional_items?.length) {
         setAdditionalItems(editingRecord.additional_items);
       } else if (editingRecord.additional_item_description) {
@@ -212,7 +212,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
           <h3 className="text-lg font-bold text-gray-900">
@@ -241,7 +241,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                 </div>
               )}
             </div>
-            
+
             {!isDriver && (
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Motorista *</label>
@@ -349,7 +349,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                     Item
                   </button>
                 </div>
-                
+
                 {additionalItems.length > 0 && (
                   <div className="space-y-3">
                     {additionalItems.map((item, index) => (
@@ -481,7 +481,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                     Adicionar Item
                   </button>
                 </div>
-                
+
                 {additionalItems.length > 0 && (
                   <div className="space-y-3">
                     {additionalItems.map((item, index) => (
@@ -583,8 +583,8 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
             </button>
           </div>
         </form>
-      </div>
     </div>
+    </div >
   );
 }
 
