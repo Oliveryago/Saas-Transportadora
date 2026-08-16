@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import type { MaintenanceRecord } from "../types";
 import { resolveDateFilter } from "./useDateFilter";
 import type { DateFilter } from "../types";
+import { parseLocalDate } from "../lib/utils/date";
 
 export function useMaintenanceRecords(vehicleId?: string, dateFilter?: DateFilter | null) {
     const { tenant } = useAuth();
