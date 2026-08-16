@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-08-16] — Bugfix: Ordenação e Valores do Relatório de Manutenção
+
+**Problema 1:** A tabela de manutenções era ordenada por `created_at` (data de inserção), fazendo registros com data retroativa aparecerem fora de ordem.
+**Correção:** Alterado `useMaintenanceRecords.ts` para ordenar por `date` (data da manutenção) DESC.
+
+**Problema 2:** O relatório exportado de manutenções apresentava valores inconsistentes com a tela:
+- Usava `created_at` como data em vez de `date`
+- O custo de peças não multiplicava por quantidade (`cost * quantity`)
+- Valores `null`/`undefined` podiam gerar `NaN` no PDF/Excel
+
+**Correção:**
+- `useReportData.ts`: Filtros e ordenação por `date`; cálculo de peças com `cost * quantity`; guard `Number() || 0`
+- `reportExporter.ts`: `formatBRL()` agora aceita `null | undefined` e retorna `R$ 0,00` em vez de crash
+
+**Arquivos modificados:**
+- `src/hooks/useMaintenanceRecords.ts`
+- `src/hooks/useReportData.ts`
+- `src/services/reportExporter.ts`
+
 ## [2026-07-16] — Implementação do Módulo de Estoque
 
 **Alterações:**

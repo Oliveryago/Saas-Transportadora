@@ -161,9 +161,9 @@ export function useReportData(reportType: ReportType, filters: ReportFilters) {
       .from("maintenance_records")
       .select("id, vehicle_id, type, description, value_brl, date, parts, created_at")
       .eq("tenant_id", tenantId)
-      .gte("created_at", f.startDate)
-      .lte("created_at", f.endDate)
-      .order("created_at", { ascending: false });
+      .gte("date", f.startDate)
+      .lte("date", f.endDate)
+      .order("date", { ascending: false });
 
     if (f.vehicleId) query = query.eq("vehicle_id", f.vehicleId);
 
@@ -171,16 +171,21 @@ export function useReportData(reportType: ReportType, filters: ReportFilters) {
 
     const result = (records || []).map((r: any) => {
       const vehicle = vehicles.find((v: any) => v.id === r.vehicle_id);
-      const partsCost = (r.parts || []).reduce((s: number, p: any) => s + (p.cost || 0), 0);
+      const partsArr = Array.isArray(r.parts) ? r.parts : [];
+      const partsCost = partsArr.reduce((s: number, p: any) => {
+        const cost = Number(p.cost) || 0;
+        const qty = Number(p.quantity) || 1;
+        return s + (cost * qty);
+      }, 0);
       return {
-        date: r.created_at,
+        date: r.date,
         plate: vehicle?.license_plate || "?",
         model: vehicle?.model || "?",
         type: r.type || "-",
         description: r.description || "-",
-        partsCount: (r.parts || []).length,
+        partsCount: partsArr.length,
         partsCost,
-        totalValue: r.value_brl || 0,
+        totalValue: Number(r.value_brl) || 0,
       };
     });
 

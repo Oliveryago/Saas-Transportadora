@@ -31,7 +31,7 @@ export function useMaintenanceRecords(vehicleId?: string, dateFilter?: DateFilte
             if (fromISO) query = query.gte("date", fromISO);
             if (toISO) query = query.lte("date", toISO);
 
-            const { data, error: err } = await query.order("created_at", { ascending: false });
+            const { data, error: err } = await query.order("date", { ascending: false });
             if (err) throw err;
             setRecords(data || []);
         } catch (err) {

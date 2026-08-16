@@ -241,8 +241,9 @@ export async function exportToExcel(
 /**
  * Formata valor em Real brasileiro
  */
-export function formatBRL(value: number): string {
-  return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export function formatBRL(value: number | null | undefined): string {
+  const safe = Number(value) || 0;
+  return `R$ ${safe.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
