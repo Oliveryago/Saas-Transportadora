@@ -31,14 +31,19 @@ export function useMaintenanceRecords(vehicleId?: string, dateFilter?: DateFilte
             if (fromISO) query = query.gte("date", fromISO);
             if (toISO) query = query.lte("date", toISO);
 
-            const { data, error: err } = await query.order("date", { ascending: false });
+            const { data, error: err } = await query;
             if (err) throw err;
-            
-            // Garantir ordenação no frontend (fallback caso a coluna no banco seja string e não dê sort correto)
+
+            // Garantir ordenação no frontend usando parseLocalDate para evitar bugs de fuso horário
             const sorted = (data || []).sort((a, b) => {
-                const dateA = new Date(a.date || 0).getTime();
-                const dateB = new Date(b.date || 0).getTime();
-                // Ordem decrescente: maior (mais recente) primeiro
+                const dateA = parseLocalDate(a.date)?.getTime() || 0;
+                const dateB = parseLocalDate(b.date)?.getTime() || 0;
+                // Em caso de empate na data, desempata pela data de criação (mais recente primeiro)
+                if (dateB === dateA) {
+                    const createdA = new Date(a.created_at || 0).getTime();
+                    const createdB = new Date(b.created_at || 0).getTime();
+                    return createdB - createdA;
+                }
                 return dateB - dateA;
             });
             setRecords(sorted);
