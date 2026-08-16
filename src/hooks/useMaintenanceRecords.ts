@@ -33,7 +33,15 @@ export function useMaintenanceRecords(vehicleId?: string, dateFilter?: DateFilte
 
             const { data, error: err } = await query.order("date", { ascending: false });
             if (err) throw err;
-            setRecords(data || []);
+            
+            // Garantir ordenação no frontend (fallback caso a coluna no banco seja string e não dê sort correto)
+            const sorted = (data || []).sort((a, b) => {
+                const dateA = new Date(a.date || 0).getTime();
+                const dateB = new Date(b.date || 0).getTime();
+                // Ordem decrescente: maior (mais recente) primeiro
+                return dateB - dateA;
+            });
+            setRecords(sorted);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erro ao carregar");
         } finally {
