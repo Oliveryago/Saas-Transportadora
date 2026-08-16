@@ -243,7 +243,7 @@ export async function exportToExcel(
  */
 export function formatBRL(value: number | null | undefined): string {
   const safe = Number(value) || 0;
-  return `R$ ${safe.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return safe.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 /**

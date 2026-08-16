@@ -23,6 +23,10 @@ export function Maintenance() {
     const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
+    
+    // Novos filtros
+    const [typeFilter, setTypeFilter] = useState<string>("");
+    const [descriptionFilter, setDescriptionFilter] = useState<string>("");
 
     const getVehicleName = (id?: string) => {
         if (!id) return "-";
@@ -36,13 +40,24 @@ export function Maintenance() {
         motor: "Motor", cambio: "Câmbio", outro: "Outro",
     };
 
-    const totalGasto = records.reduce((sum, r) => sum + Number(r.value_brl || 0), 0);
-    const thisMonth = records.filter((r) => {
+    const filteredRecords = records.filter((r) => {
+        if (typeFilter && r.type !== typeFilter) return false;
+        if (descriptionFilter && !r.description?.toLowerCase().includes(descriptionFilter.toLowerCase())) return false;
+        return true;
+    });
+
+    const totalGasto = filteredRecords.reduce((sum, r) => sum + Number(r.value_brl || 0), 0);
+    const thisMonth = filteredRecords.filter((r) => {
         const parsed = parseLocalDate(r.date);
         if (!parsed) return false;
         const now = new Date();
         return parsed.getMonth() === now.getMonth() && parsed.getFullYear() === now.getFullYear();
     });
+
+    const formatBRL = (value: number | string | undefined | null) => {
+        const num = Number(value) || 0;
+        return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    };
 
     function handleModalClose() {
         setModalOpen(false);
@@ -99,11 +114,34 @@ export function Maintenance() {
                             </div>
                         </div>
                         <div className="hidden md:flex items-center gap-6">
-                            <VehicleFilter 
-                                value={selectedVehicleId} 
-                                onChange={setSelectedVehicleId} 
-                            />
-                            <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-4">
+                                    <VehicleFilter 
+                                        value={selectedVehicleId} 
+                                        onChange={setSelectedVehicleId} 
+                                    />
+                                    <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <select
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className="text-sm border border-gray-300 rounded-md py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700"
+                                    >
+                                        <option value="">Todos os Tipos</option>
+                                        {Object.entries(typeLabels).map(([val, label]) => (
+                                            <option key={val} value={val}>{label}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por descrição..."
+                                        value={descriptionFilter}
+                                        onChange={(e) => setDescriptionFilter(e.target.value)}
+                                        className="text-sm border border-gray-300 rounded-md py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 w-48 text-gray-700"
+                                    />
+                                </div>
+                            </div>
                             <div className="text-right">
                                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                                 <p className="text-xs text-gray-500">{tenant?.name}</p>
@@ -120,7 +158,7 @@ export function Maintenance() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="bg-white rounded-lg shadow p-6">
                         <p className="text-gray-600 text-sm">Total de Manutenções</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{records.length}</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{filteredRecords.length}</p>
                     </div>
                     <div className="bg-white rounded-lg shadow p-6">
                         <p className="text-gray-600 text-sm">Manutenções Este Mês</p>
@@ -129,7 +167,7 @@ export function Maintenance() {
                     <div className="bg-white rounded-lg shadow p-6">
                         <p className="text-gray-600 text-sm">Gasto Total</p>
                         <p className="text-3xl font-bold text-orange-600 mt-2">
-                            R$ {totalGasto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            {formatBRL(totalGasto)}
                         </p>
                     </div>
                 </div>
@@ -143,7 +181,7 @@ export function Maintenance() {
                 </button>
 
                 <div className="bg-white rounded-lg shadow overflow-hidden">
-                    {records.length > 0 ? (
+                    {filteredRecords.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead className="bg-gray-50 border-b">
@@ -157,7 +195,7 @@ export function Maintenance() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {records.map((record) => (
+                                    {filteredRecords.map((record) => (
                                         <tr key={record.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 text-sm text-gray-900">
                                                 {formatLocalDate(record.date)}
@@ -170,7 +208,7 @@ export function Maintenance() {
                                             <td className="px-6 py-4 text-sm text-gray-900">{getVehicleName(record.vehicle_id)}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{record.description || "-"}</td>
                                             <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                                {record.value_brl ? `R$ ${Number(record.value_brl).toFixed(2)}` : "-"}
+                                                {record.value_brl ? formatBRL(record.value_brl) : "-"}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="flex gap-2">
