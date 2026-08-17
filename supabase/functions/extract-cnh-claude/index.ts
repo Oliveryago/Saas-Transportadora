@@ -1,12 +1,8 @@
-﻿/**
- * Supabase Edge Function: extract-cnh-claude
- * Recebe PDF em base64, chama a API da Anthropic e retorna dados extraidos da CNH.
- * ANTHROPIC_API_KEY deve ser configurada como secret no Supabase.
- */
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-haiku-4-5-20251001";
+// Usando o Sonnet 3.5 para máxima precisao visual em documentos complexos
+const MODEL = "claude-3-5-sonnet-20241022";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,13 +11,54 @@ const CORS_HEADERS = {
   "Content-Type": "application/json",
 };
 
-const SYSTEM_PROMPT = Voce e um extrator de dados de documentos brasileiros.
-Analise o documento CNH fornecido e extraia os dados.
+const SYSTEM_PROMPT = Voce e um extrator de dados altamente preciso especializado em CNH brasileira.
+A CNH possui um layout padronizado. Preste MUITA atencao as posicoes e rotulos dos campos:
+- NOME COMPLETO: Fica na parte superior, abaixo da palavra "NOME".
+- CPF: Fica abaixo do rotulo "CPF", no formato XXX.XXX.XXX-XX. NAO confunda com o RG ou Orgao Emissor.
+- DATA DE NASCIMENTO: Fica abaixo do rotulo "DATA NASCIMENTO", ao lado do CPF.
+- NUMERO DA CNH (N REGISTRO): Fica no campo inferior rotulado "N REGISTRO". Sao exatamente 11 digitos. ATENCAO EXTREMA: NUNCA extraia o numero impresso na vertical (na lateral esquerda do documento, em vermelho ou preto). O verdadeiro numero de registro fica na parte de baixo, proximo a validade.
+- CATEGORIA: Fica no campo rotulado "CAT. HAB.". Letras validas: A, B, C, D, E, AB, AC, AD, AE. NAO confunda com o campo "ACC" ou "PERMISSAO".
+- VALIDADE: Fica abaixo do rotulo "VALIDADE", na parte inferior.
+
+RELEIA CADA DIGITO COM ATENCAO ANTES DE RESPONDER. Um erro de 1 digito invalida o cadastro.
+
 Responda APENAS com um objeto JSON valido, sem texto adicional, sem markdown.
-O JSON deve ter exatamente estes campos:
+Campos esperados:
 {"nomeCompleto":string|null,"cpf":string|null,"dataNascimento":string|null,"numeroCNH":string|null,"categoria":string|null,"validade":string|null}
-Regras: Retorne null para campos nao encontrados. Nunca invente dados.
-dataNascimento e validade: formato YYYY-MM-DD. cpf e numeroCNH: apenas numeros. categoria: apenas letras.;
+
+Regras formatacao:
+- dataNascimento e validade: no formato YYYY-MM-DD.
+- cpf: retorne apenas numeros (11 digitos).
+- numeroCNH: retorne apenas numeros (11 digitos).
+- categoria: retorne apenas as letras (ex: AB, AE, C).
+Se nao encontrar ou estiver ilegivel, retorne null.;
+
+function isValidCPF(cpf: string): boolean {
+  cpf = cpf.replace(/[^\d]+/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  let sum = 0, rest;
+  for (let i = 1; i <= 9; i++) sum += parseInt(cpf.substring(i-1, i)) * (11 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  if (rest !== parseInt(cpf.substring(9, 10))) return false;
+  sum = 0;
+  for (let i = 1; i <= 10; i++) sum += parseInt(cpf.substring(i-1, i)) * (12 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  if (rest !== parseInt(cpf.substring(10, 11))) return false;
+  return true;
+}
+
+function isValidCategory(cat: string): boolean {
+  const valid = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'];
+  return valid.includes(cat.toUpperCase());
+}
+
+function isValidDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const d = new Date(dateStr);
+  return d instanceof Date && !isNaN(d.getTime());
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
@@ -36,14 +73,39 @@ serve(async (req) => {
   const { pdfBase64 } = body;
   if (!pdfBase64) return new Response(JSON.stringify({ error: "Campo pdfBase64 ausente." }), { status: 400, headers: CORS_HEADERS });
 
+  // Detecta dinamicamente se é imagem ou PDF pelo cabeçalho do base64
+  let mediaType = "application/pdf";
+  let sourceType = "document";
+  
+  if (pdfBase64.startsWith("data:")) {
+    const match = pdfBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/);
+    if (match) {
+      mediaType = match[1];
+      if (mediaType.startsWith("image/")) {
+        sourceType = "image";
+      }
+    }
+  }
+
   const cleanBase64 = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
 
   let ar;
   try {
     ar = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-beta": "pdfs-2024-09-25", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 512, system: SYSTEM_PROMPT, messages: [{ role: "user", content: [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: cleanBase64 } }, { type: "text", text: "Extraia os dados desta CNH e retorne apenas o JSON." }] }] }),
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-beta": sourceType === "document" ? "pdfs-2024-09-25" : "", "content-type": "application/json" },
+      body: JSON.stringify({ 
+        model: MODEL, 
+        max_tokens: 512, 
+        system: SYSTEM_PROMPT, 
+        messages: [{ 
+          role: "user", 
+          content: [
+            { type: sourceType, source: { type: "base64", media_type: mediaType, data: cleanBase64 } }, 
+            { type: "text", text: "Extraia os dados desta CNH e retorne apenas o JSON. Releia os digitos e obedeça ao prompt de sistema." }
+          ] 
+        }] 
+      }),
     });
   } catch (err) { return new Response(JSON.stringify({ error: Falha de conexao:  }), { status: 502, headers: CORS_HEADERS }); }
 
@@ -58,6 +120,30 @@ serve(async (req) => {
     if (!m) throw new Error("No JSON");
     extracted = JSON.parse(m[0]);
   } catch { return new Response(JSON.stringify({ error: "Modelo nao retornou JSON valido. Preencha manualmente.", rawResponse: rawText }), { status: 422, headers: CORS_HEADERS }); }
+
+  // Validacoes Pós-Extracao
+  if (extracted.cpf) {
+    const cleanCpf = extracted.cpf.replace(/\D/g, '');
+    if (!isValidCPF(cleanCpf)) {
+      console.log(CPF Invalido rejeitado: );
+      extracted.cpf = null;
+    } else {
+      extracted.cpf = cleanCpf;
+    }
+  }
+
+  if (extracted.categoria && !isValidCategory(extracted.categoria)) {
+    console.log(Categoria Invalida rejeitada: );
+    extracted.categoria = null;
+  }
+
+  if (extracted.dataNascimento && !isValidDate(extracted.dataNascimento)) {
+    extracted.dataNascimento = null;
+  }
+
+  if (extracted.validade && !isValidDate(extracted.validade)) {
+    extracted.validade = null;
+  }
 
   return new Response(JSON.stringify(extracted), { status: 200, headers: CORS_HEADERS });
 });
