@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-3-5-sonnet-20240620";
+const MODEL = "claude-3-haiku-20240307";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
