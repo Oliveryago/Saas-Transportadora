@@ -105,7 +105,7 @@ create or replace function registrar_saida_estoque(
   p_observacao text default null
 ) returns void as $$
 declare
-  v_estoque_atual numeric;
+  v_estoque_atual numeri2=e=c;
   v_custo_medio numeric;
   v_custo_alocado numeric;
 begin

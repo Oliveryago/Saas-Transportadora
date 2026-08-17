@@ -1,7 +1,6 @@
-﻿import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-// Usando o Sonnet 3.5 para máxima precisao visual em documentos complexos
 const MODEL = "claude-3-5-sonnet-20241022";
 
 const CORS_HEADERS = {
@@ -11,7 +10,7 @@ const CORS_HEADERS = {
   "Content-Type": "application/json",
 };
 
-const SYSTEM_PROMPT = Voce e um extrator de dados altamente preciso especializado em CNH brasileira.
+const SYSTEM_PROMPT = `Voce e um extrator de dados altamente preciso especializado em CNH brasileira.
 A CNH possui um layout padronizado. Preste MUITA atencao as posicoes e rotulos dos campos:
 - NOME COMPLETO: Fica na parte superior, abaixo da palavra "NOME".
 - CPF: Fica abaixo do rotulo "CPF", no formato XXX.XXX.XXX-XX. NAO confunda com o RG ou Orgao Emissor.
@@ -31,7 +30,7 @@ Regras formatacao:
 - cpf: retorne apenas numeros (11 digitos).
 - numeroCNH: retorne apenas numeros (11 digitos).
 - categoria: retorne apenas as letras (ex: AB, AE, C).
-Se nao encontrar ou estiver ilegivel, retorne null.;
+Se nao encontrar ou estiver ilegivel, retorne null.`;
 
 function isValidCPF(cpf: string): boolean {
   cpf = cpf.replace(/[^\d]+/g, '');
@@ -73,7 +72,8 @@ serve(async (req) => {
   const { pdfBase64 } = body;
   if (!pdfBase64) return new Response(JSON.stringify({ error: "Campo pdfBase64 ausente." }), { status: 400, headers: CORS_HEADERS });
 
-  // Detecta dinamicamente se é imagem ou PDF pelo cabeçalho do base64
+  console.log(`[OCR API] Iniciando processamento. Tamanho do payload: ${Math.round(pdfBase64.length / 1024)}KB`);
+
   let mediaType = "application/pdf";
   let sourceType = "document";
   
@@ -87,13 +87,27 @@ serve(async (req) => {
     }
   }
 
+  console.log(`[OCR API] Tipo detectado: ${sourceType} (${mediaType})`);
+
   const cleanBase64 = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
+
+  const requestHeaders: Record<string, string> = {
+    "x-api-key": apiKey,
+    "anthropic-version": "2023-06-01",
+    "content-type": "application/json"
+  };
+
+  if (sourceType === "document") {
+    requestHeaders["anthropic-beta"] = "pdfs-2024-09-25";
+  }
+
+  console.log(`[OCR API] Chamando Anthropic usando modelo: ${MODEL}`);
 
   let ar;
   try {
     ar = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-beta": sourceType === "document" ? "pdfs-2024-09-25" : "", "content-type": "application/json" },
+      headers: requestHeaders,
       body: JSON.stringify({ 
         model: MODEL, 
         max_tokens: 512, 
@@ -107,25 +121,39 @@ serve(async (req) => {
         }] 
       }),
     });
-  } catch (err) { return new Response(JSON.stringify({ error: Falha de conexao:  }), { status: 502, headers: CORS_HEADERS }); }
+  } catch (err) { 
+    console.error(`[OCR API] Erro de fetch Anthropic:`, err);
+    return new Response(JSON.stringify({ error: `Falha de conexao: ${err}` }), { status: 502, headers: CORS_HEADERS }); 
+  }
 
-  if (!ar.ok) { const e = await ar.text(); return new Response(JSON.stringify({ error: API Anthropic :  }), { status: 502, headers: CORS_HEADERS }); }
+  if (!ar.ok) { 
+    const e = await ar.text(); 
+    console.error(`[OCR API] Erro retornado pela Anthropic (${ar.status}):`, e);
+    return new Response(JSON.stringify({ error: `API Anthropic ${ar.status}: ${e}` }), { status: 502, headers: CORS_HEADERS }); 
+  }
 
   const ad = await ar.json();
   const rawText = ad?.content?.[0]?.text ?? "";
+  
+  console.log(`[OCR API] Resposta bruta da IA:`, rawText);
 
   let extracted;
   try {
     const m = rawText.match(/\{[\s\S]*\}/);
     if (!m) throw new Error("No JSON");
     extracted = JSON.parse(m[0]);
-  } catch { return new Response(JSON.stringify({ error: "Modelo nao retornou JSON valido. Preencha manualmente.", rawResponse: rawText }), { status: 422, headers: CORS_HEADERS }); }
+  } catch { 
+    console.error(`[OCR API] Falha no Parse JSON. Texto bruto:`, rawText);
+    return new Response(JSON.stringify({ error: "Modelo nao retornou JSON valido.", rawResponse: rawText }), { status: 422, headers: CORS_HEADERS }); 
+  }
+
+  console.log(`[OCR API] JSON Extraido com sucesso:`, JSON.stringify(extracted));
 
   // Validacoes Pós-Extracao
   if (extracted.cpf) {
     const cleanCpf = extracted.cpf.replace(/\D/g, '');
     if (!isValidCPF(cleanCpf)) {
-      console.log(CPF Invalido rejeitado: );
+      console.warn(`[OCR API] CPF Invalido rejeitado (falhou no digito verificador): ${extracted.cpf}`);
       extracted.cpf = null;
     } else {
       extracted.cpf = cleanCpf;
@@ -133,17 +161,20 @@ serve(async (req) => {
   }
 
   if (extracted.categoria && !isValidCategory(extracted.categoria)) {
-    console.log(Categoria Invalida rejeitada: );
+    console.warn(`[OCR API] Categoria Invalida rejeitada: ${extracted.categoria}`);
     extracted.categoria = null;
   }
 
   if (extracted.dataNascimento && !isValidDate(extracted.dataNascimento)) {
+    console.warn(`[OCR API] Data de nascimento invalida rejeitada: ${extracted.dataNascimento}`);
     extracted.dataNascimento = null;
   }
 
   if (extracted.validade && !isValidDate(extracted.validade)) {
+    console.warn(`[OCR API] Validade invalida rejeitada: ${extracted.validade}`);
     extracted.validade = null;
   }
 
+  console.log(`[OCR API] Finalizando com sucesso.`);
   return new Response(JSON.stringify(extracted), { status: 200, headers: CORS_HEADERS });
 });

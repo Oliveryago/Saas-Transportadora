@@ -226,7 +226,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
         {/* Scrollable Form Body */}
         <form id="fuel-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            
+
             {/* --- PRIMEIRA LINHA --- */}
             <div className="col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Veículo *</label>
@@ -275,7 +275,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
-            
+
             <div className="col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">KM Registrado *</label>
               <input type="number" value={kmDigital || ""} onChange={(e) => setKmDigital(parseInt(e.target.value) || 0)}
@@ -335,7 +335,7 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                     </label>
                     <span className="text-sm font-medium text-blue-900">Adicionou Arla 32?</span>
                   </div>
-                  
+
                   {hasArla && (
                     <div className="grid grid-cols-2 gap-3 mt-auto">
                       <div>
@@ -397,9 +397,9 @@ function FuelModal({ open, onClose, editingRecord, vehicles, addRecord, updateRe
                     </p>
                   )}
                   {totalLiters > 0 && (
-                     <div className="mt-2 text-xs text-gray-500">
-                       Volume Total: <span className="font-semibold text-gray-700">{totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} L</span>
-                     </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Volume Total: <span className="font-semibold text-gray-700">{totalLiters.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} L</span>
+                    </div>
                   )}
                 </div>
               ) : (
