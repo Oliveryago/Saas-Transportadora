@@ -35,6 +35,8 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
     implement_id: initialData?.implement_id || "",
     implement2_id: initialData?.implement2_id || "",
     active: initialData?.active ?? true,
+    start_date: initialData?.start_date || "",
+    end_date: initialData?.end_date || "",
   });
 
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
@@ -128,6 +130,8 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
       implement2_id: formData.implement2_id || null,
       data_nascimento: formData.data_nascimento || null,
       validade_cnh: formData.validade_cnh || null,
+      start_date: formData.start_date || null,
+      end_date: formData.end_date || null,
     };
     
     onSubmit(sanitizedData);
@@ -202,11 +206,21 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
             </div>
 
             <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Data de Início (Admissão)</label>
+              <input type="date" className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.start_date} onChange={e => setFormData({ ...formData, start_date: e.target.value })} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Data de Saída (Demissão)</label>
+              <input type="date" className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.end_date} onChange={e => setFormData({ ...formData, end_date: e.target.value })} />
+            </div>
+
+            <div className="space-y-1 mt-2">
               <label className="text-xs font-semibold text-gray-500 uppercase">Nome Completo *</label>
               <input required type="text" className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.nome_completo} onChange={e => setFormData({ ...formData, nome_completo: e.target.value })} />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 mt-2">
               <label className="text-xs font-semibold text-gray-500 uppercase">CPF *</label>
               <input required type="text" className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.cpf} onChange={e => setFormData({ ...formData, cpf: e.target.value })} />
             </div>

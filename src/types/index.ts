@@ -336,6 +336,8 @@ export interface Driver {
   implement_id?: string;
   implement2_id?: string;
   active: boolean;
+  start_date?: string;
+  end_date?: string;
   created_at: string;
   updated_at: string;
 }
