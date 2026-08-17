@@ -13,7 +13,7 @@
 import { supabase } from "../../lib/supabase";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/extract-cnh-claude`;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/quick-api`;
 
 export interface OCRResult {
   nome_completo: string;
