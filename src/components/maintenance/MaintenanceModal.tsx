@@ -119,9 +119,11 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 my-8">
-                <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+
+                {/* Cabeçalho fixo */}
+                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 flex-shrink-0">
                     <h3 className="text-lg font-bold text-gray-900">
                         {editingRecord ? "Editar Manutenção" : "Nova Manutenção"}
                     </h3>
@@ -130,7 +132,9 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Corpo com scroll */}
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
@@ -264,17 +268,21 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                         </div>
                     </div>
 
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>
-                    )}
+                    </div>
 
-                    <div className="flex gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                            {loading ? "Salvando..." : "Salvar"}
-                        </button>
+                    {/* Rodapé fixo */}
+                    <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-white">
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+                        )}
+                        <div className="flex gap-3">
+                            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                                {loading ? "Salvando..." : "Salvar"}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
