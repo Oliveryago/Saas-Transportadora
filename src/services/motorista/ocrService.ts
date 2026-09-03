@@ -1,19 +1,6 @@
-/**
- * Serviço de OCR para Processamento de CNH - v13.0 (Claude Vision)
- *
- * Estratégia:
- * 1. PDF → base64
- * 2. Envia para Supabase Edge Function (extract-cnh-claude)
- * 3. Edge Function → Anthropic Claude (document vision) → JSON com dados da CNH
- *
- * Vantagem: Claude lê PDFs nativamente, sem converter para imagem.
- * A ANTHROPIC_API_KEY fica segura no servidor (Supabase Secrets), nunca exposta ao front.
- */
-
-import { supabase } from "../../lib/supabase";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/extract-cnh-claude`;
+import { invokeExtractFunction, asText } from "../ocr/documentOcrClient";
+export { OcrError } from "../ocr/documentOcrClient";
+export type { OcrErrorCode } from "../ocr/documentOcrClient";
 
 export interface OCRResult {
   nome_completo: string;
@@ -22,60 +9,83 @@ export interface OCRResult {
   categoria_cnh: string;
   validade_cnh: string;
   data_nascimento: string;
+  data_primeira_habilitacao: string | null;
+  numero_espelho: string | null;
   confidence: number;
   method?: "claude" | "none";
 }
 
+export interface VehicleDocOcrResult {
+  placa: string;
+  modelo: string;
+  ano_fabricacao: string;
+  ano_modelo: string;
+  chassi: string;
+  renavam: string;
+  cor: string;
+  combustivel: string;
+  capacidade_carga: string;
+  categoria: string;
+}
+
 export const ocrService = {
   async processCNH(file: File): Promise<OCRResult> {
-    console.log("[OCR] Iniciando leitura de CNH com Claude Vision...");
-
-    // Converte o arquivo para base64
-    const pdfBase64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-      reader.readAsDataURL(file);
+    console.log("[OCR] Iniciando leitura de CNH...", { name: file.name, type: file.type, size: file.size });
+    return invokeExtractFunction("extract-cnh-claude", file, (data) => {
+      console.log("[OCR] CPF na resposta bruta:", data.cpf);
+      return {
+        nome_completo: asText(data.nome_completo ?? data.nomeCompleto),
+        cpf: asText(data.cpf),
+        numero_cnh: asText(data.numero_cnh ?? data.numeroCNH),
+        categoria_cnh: asText(data.categoria ?? data.categoria_cnh),
+        validade_cnh: asText(data.validade ?? data.validade_cnh),
+        data_nascimento: asText(data.data_nascimento ?? data.dataNascimento),
+        data_primeira_habilitacao: asText(data.data_primeira_habilitacao) || null,
+        numero_espelho: asText(data.numero_espelho ?? data.renach) || null,
+        confidence: 1,
+        method: "claude" as const,
+      };
     });
-
-    console.log(`[OCR] Arquivo convertido (${Math.round(pdfBase64.length / 1024)} KB). Enviando para processamento...`);
-
-    // Busca o token de autenticação do usuário atual
-    const { data: { session } } = await supabase.auth.getSession();
-
-    const response = await fetch(EDGE_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session?.access_token ?? ""}`,
-      },
-      body: JSON.stringify({ pdfBase64 }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("[OCR] Erro na Edge Function:", data);
-      throw new Error(data.error || "Erro ao processar o documento.");
-    }
-
-    console.log("[OCR] Dados extraídos com sucesso:", data);
-
-    // Mapeia os campos do Claude para o formato do OCRResult existente
-    return {
-      nome_completo: data.nomeCompleto ?? "",
-      cpf: data.cpf ?? "",
-      numero_cnh: data.numeroCNH ?? "",
-      categoria_cnh: data.categoria ?? "",
-      validade_cnh: data.validade ?? "",
-      data_nascimento: data.dataNascimento ?? "",
-      confidence: 1,
-      method: "claude",
-    };
   },
 
-  compareData(ocrData: any, manualData: any) {
+  async processVehicleDocument(file: File): Promise<VehicleDocOcrResult> {
+    console.log("[OCR] Iniciando leitura de CRLV...", { name: file.name, type: file.type, size: file.size });
+    return invokeExtractFunction("extract-vehicle-doc-claude", file, (data) => ({
+      placa: asText(data.placa),
+      modelo: asText(data.modelo),
+      ano_fabricacao: asText(data.ano_fabricacao),
+      ano_modelo: asText(data.ano_modelo),
+      chassi: asText(data.chassi),
+      renavam: asText(data.renavam),
+      cor: asText(data.cor),
+      combustivel: asText(data.combustivel),
+      capacidade_carga: asText(data.capacidade_carga),
+      categoria: asText(data.categoria),
+    }));
+  },
+
+  compareData(ocrData: { cpf?: string }, manualData: { cpf?: string }) {
     const clean = (s: string) => s?.replace(/\D/g, "") || "";
-    return clean(ocrData.cpf) === clean(manualData.cpf);
+    return clean(ocrData.cpf || "") === clean(manualData.cpf || "");
   },
 };
+
+export function crlvFieldsFromOcr(ocr: VehicleDocOcrResult, crlvUrl?: string) {
+  const yearModel = parseInt(ocr.ano_modelo, 10);
+  const yearFab = parseInt(ocr.ano_fabricacao, 10);
+  const year = Number.isFinite(yearModel) ? yearModel : Number.isFinite(yearFab) ? yearFab : undefined;
+
+  return {
+    license_plate: ocr.placa,
+    model: ocr.modelo,
+    year,
+    year_manufacture: Number.isFinite(yearFab) ? yearFab : null,
+    chassi: ocr.chassi || null,
+    renavam: ocr.renavam || null,
+    color: ocr.cor || null,
+    crlv_fuel: ocr.combustivel || null,
+    load_capacity: ocr.capacidade_carga || null,
+    crlv_category: ocr.categoria || null,
+    crlv_url: crlvUrl || null,
+  };
+}

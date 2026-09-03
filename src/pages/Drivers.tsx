@@ -5,11 +5,13 @@ import { useVehicles } from "../hooks/useVehicles";
 import { useCompanySettings } from "../hooks/useCompanySettings";
 import { useImplements } from "../hooks/useImplements";
 import { MotoristaForm } from "../components/motorista/MotoristaForm";
+import { DriverCnhActions } from "../components/motorista/DriverCnhActions";
 import { generateDriverProfile } from "../services/documentGenerator";
+import { formatCnhExpiryLabel, getCnhExpiryStatus } from "../utils/cnhDocument";
 import type { Driver } from "../types";
 
 export function Drivers() {
-  const { drivers, loading, addDriver, updateDriver } = useDrivers();
+  const { drivers, loading, addDriver, updateDriver, getCnhSignedUrl } = useDrivers();
   const { vehicles } = useVehicles();
   const { implements: implementsList } = useImplements();
   const { settings } = useCompanySettings();
@@ -192,13 +194,22 @@ export function Drivers() {
                             <User className="w-6 h-6" />
                           )}
                         </div>
-                        <div className="flex flex-col items-end">
+                        <div className="flex flex-col items-end gap-1">
                           <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${driver.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                             {driver.active ? 'Ativo' : 'Inativo'}
                           </span>
                           <span className="text-[10px] text-gray-400 mt-1 font-mono uppercase tracking-tighter">
                             CNH: {driver.categoria_cnh || 'N/A'}
                           </span>
+                          {formatCnhExpiryLabel(driver.validade_cnh) && (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              getCnhExpiryStatus(driver.validade_cnh) === "expired"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {formatCnhExpiryLabel(driver.validade_cnh)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       
@@ -214,6 +225,11 @@ export function Drivers() {
                           <FileText className="w-4 h-4 text-gray-400" />
                           <span>CNH: {driver.numero_cnh || '---'}</span>
                         </div>
+                        <DriverCnhActions
+                          cnhUrl={driver.cnh_url}
+                          fileName={driver.cnh_file_name}
+                          getSignedUrl={getCnhSignedUrl}
+                        />
                         {linkedVehicle && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <MapPin className="w-4 h-4 text-gray-400" />

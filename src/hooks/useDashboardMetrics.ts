@@ -139,7 +139,7 @@ export function useDashboardMetrics(vehicleId?: string, dateFilter?: DateFilter 
         insuranceRes,
       ] = await Promise.all([
         vehiclesQuery,
-        supabase.from("drivers").select("id, nome_completo, active").eq("tenant_id", tenant.id).eq("active", true),
+        supabase.from("drivers").select("id, nome_completo, active, validade_cnh, vehicle_id").eq("tenant_id", tenant.id),
         fuelQuery,
         maintenanceQuery,
         oilQuery,
@@ -227,7 +227,7 @@ export function useDashboardMetrics(vehicleId?: string, dateFilter?: DateFilter 
     return {
       vehiclesActive: vehicles.filter(v => v.active).length,
       vehiclesInactive: vehicles.filter(v => !v.active).length,
-      driversCount: drivers.length,
+      driversCount: drivers.filter(d => d.active).length,
       fuelCountMonth: monthFuel.length,
       fuelTotalMonth: monthFuel.reduce((sum, r) => sum + (r.value_brl || 0), 0),
       maintenanceCostMonth: monthMaintenance.reduce((sum, r) => sum + (r.value_brl || 0), 0),
@@ -444,10 +444,36 @@ export function useDashboardMetrics(vehicleId?: string, dateFilter?: DateFilter 
       }
     });
 
+    // Alertas de CNH vencendo
+    drivers.forEach((driver: { id: string; nome_completo?: string; active?: boolean; validade_cnh?: string; vehicle_id?: string }) => {
+      if (!driver.active || !driver.validade_cnh) return;
+      const expDate = new Date(`${driver.validade_cnh}T12:00:00`);
+      const daysLeft = Math.ceil((expDate.getTime() - now.getTime()) / 86400000);
+      if (daysLeft > 60) return;
+
+      const vehicle = vehicles.find(v => v.id === driver.vehicle_id);
+      items.push({
+        id: `cnh-${driver.id}`,
+        vehicleId: driver.vehicle_id || driver.id,
+        plate: vehicle?.license_plate || "CNH",
+        model: driver.nome_completo || "Motorista",
+        alertType: "CNH",
+        urgency: daysLeft <= 0 ? "red" : "yellow",
+        message: daysLeft <= 0
+          ? `CNH vencida há ${Math.abs(daysLeft)} dias`
+          : daysLeft === 0
+            ? "CNH vence hoje"
+            : `CNH vence em ${daysLeft} dias`,
+        daysRemaining: daysLeft,
+        module: "drivers",
+        path: "/drivers",
+      });
+    });
+
     // Ordenar por urgência: vermelho > amarelo > verde
     const urgencyOrder = { red: 0, yellow: 1, green: 2 };
     return items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
-  }, [oilAlerts, vehicles, fuelRecords, insuranceRecords]);
+  }, [oilAlerts, vehicles, fuelRecords, insuranceRecords, drivers]);
 
   // Atividade recente
   const recentActivity = useMemo<RecentActivity[]>(() => {

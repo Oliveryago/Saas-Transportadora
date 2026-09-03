@@ -5,11 +5,15 @@ import { supabase } from "../lib/supabase";
 import type { Driver } from "../types";
 import { useVehicles } from "../hooks/useVehicles";
 import { ArrowLeft, User, Truck, LogOut, FileText } from "lucide-react";
+import { DriverCnhActions } from "../components/motorista/DriverCnhActions";
+import { useDrivers } from "../hooks/useDrivers";
+import { formatCnhExpiryLabel, getCnhExpiryStatus } from "../utils/cnhDocument";
 
 export function DriverProfile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { vehicles } = useVehicles();
+  const { getCnhSignedUrl } = useDrivers();
   const [driverProfile, setDriverProfile] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -106,13 +110,37 @@ export function DriverProfile() {
               </div>
               <div className="flex justify-between pb-1">
                 <span className="text-gray-400">Validade CNH</span>
-                <span className="font-medium">
+                <span className={`font-medium ${
+                  getCnhExpiryStatus(driverProfile?.validade_cnh) === "expired" ? "text-red-400" :
+                  getCnhExpiryStatus(driverProfile?.validade_cnh) === "warning" ? "text-amber-300" : ""
+                }`}>
                   {driverProfile?.validade_cnh 
                     ? new Date(driverProfile.validade_cnh + "T12:00:00").toLocaleDateString("pt-BR") 
                     : "-"}
                 </span>
               </div>
+              {formatCnhExpiryLabel(driverProfile?.validade_cnh) && (
+                <p className={`text-xs ${getCnhExpiryStatus(driverProfile?.validade_cnh) === "expired" ? "text-red-400" : "text-amber-300"}`}>
+                  {formatCnhExpiryLabel(driverProfile?.validade_cnh)}
+                </p>
+              )}
             </div>
+          )}
+        </div>
+
+        <div className="bg-white/5 rounded-2xl p-5 border border-white/10 space-y-4">
+          <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+            <FileText className="w-4 h-4" /> Documento da CNH
+          </h3>
+          <DriverCnhActions
+            cnhUrl={driverProfile?.cnh_url}
+            fileName={driverProfile?.cnh_file_name}
+            getSignedUrl={getCnhSignedUrl}
+          />
+          {driverProfile?.cnh_uploaded_at && (
+            <p className="text-xs text-gray-400">
+              Último envio: {new Date(driverProfile.cnh_uploaded_at).toLocaleString("pt-BR")}
+            </p>
           )}
         </div>
 

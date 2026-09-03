@@ -100,8 +100,16 @@ export interface Vehicle {
   license_plate: string;
   model: string;
   year?: number;
+  year_manufacture?: number;
   current_km: number;
   tank_capacity?: number;
+  chassi?: string;
+  renavam?: string;
+  color?: string;
+  crlv_fuel?: string;
+  load_capacity?: string;
+  crlv_category?: string;
+  crlv_url?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -113,6 +121,15 @@ export interface Implement {
   type: ImplementType;
   license_plate: string;
   model: string;
+  year?: number;
+  year_manufacture?: number;
+  chassi?: string;
+  renavam?: string;
+  color?: string;
+  crlv_fuel?: string;
+  load_capacity?: string;
+  crlv_category?: string;
+  crlv_url?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -322,6 +339,10 @@ export interface Driver {
   numero_cnh?: string;
   categoria_cnh?: string;
   validade_cnh?: string;
+  data_primeira_habilitacao?: string | null;
+  numero_espelho?: string | null;
+  cnh_uploaded_at?: string | null;
+  cnh_file_name?: string | null;
   endereco?: string; // fallback
   cep?: string;
   street?: string;
@@ -331,7 +352,7 @@ export interface Driver {
   state?: string;
   phone?: string;
   photo_url?: string;
-  cnh_url?: string;
+  cnh_url?: string | null;
   vehicle_id?: string;
   implement_id?: string;
   implement2_id?: string;
