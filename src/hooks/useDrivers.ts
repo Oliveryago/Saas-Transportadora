@@ -3,20 +3,45 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { Driver } from "../types";
 import { fileToCnhPdf, validateCnhFile } from "../utils/cnhDocument";
+import { humanizeWriteError, writeWithColumnFallback } from "../lib/supabaseWrite";
 
 const CNH_BUCKET = "cnh-documents";
 const CNH_SIGNED_TTL_SEC = 60 * 60;
-const OPTIONAL_CNH_COLUMNS = ["data_primeira_habilitacao", "numero_espelho", "cnh_uploaded_at", "cnh_file_name"] as const;
+const DRIVER_WRITE_COLUMNS = [
+  "nome_completo",
+  "data_nascimento",
+  "cpf",
+  "numero_cnh",
+  "categoria_cnh",
+  "validade_cnh",
+  "data_primeira_habilitacao",
+  "numero_espelho",
+  "cnh_uploaded_at",
+  "cnh_file_name",
+  "endereco",
+  "cep",
+  "street",
+  "number",
+  "neighborhood",
+  "city",
+  "state",
+  "phone",
+  "photo_url",
+  "cnh_url",
+  "vehicle_id",
+  "implement_id",
+  "implement2_id",
+  "active",
+  "start_date",
+  "end_date",
+] as const;
 
-function isMissingColumnError(err: { code?: string; message?: string; details?: string } | null | undefined) {
-  const msg = `${err?.message || ""} ${err?.details || ""}`;
-  return err?.code === "42703" || /column .* does not exist/i.test(msg);
-}
-
-function withoutOptionalCnhColumns<T extends Record<string, unknown>>(data: T) {
-  const next = { ...data };
-  for (const key of OPTIONAL_CNH_COLUMNS) delete next[key];
-  return next;
+function pickDriverPayload(data: Record<string, unknown>) {
+  const payload: Record<string, unknown> = {};
+  for (const key of DRIVER_WRITE_COLUMNS) {
+    if (key in data) payload[key] = data[key];
+  }
+  return payload;
 }
 
 function extractCnhStoragePath(cnhUrl: string): string | null {
@@ -64,39 +89,31 @@ export function useDrivers() {
   const addDriver = async (driverData: Omit<Driver, "id" | "tenant_id" | "created_at" | "updated_at">) => {
     if (!tenant) throw new Error("Tenant não identificado");
     try {
-      let payload: Record<string, unknown> = { ...driverData, tenant_id: tenant.id };
-      let { data, error: err } = await supabase.from("drivers").insert([payload]).select().single();
-      if (err && isMissingColumnError(err)) {
-        payload = withoutOptionalCnhColumns(payload);
-        const retry = await supabase.from("drivers").insert([payload]).select().single();
-        data = retry.data;
-        err = retry.error;
-      }
-      if (err) throw err;
+      const payload = { ...pickDriverPayload(driverData as Record<string, unknown>), tenant_id: tenant.id };
+      const data = await writeWithColumnFallback<Driver>(
+        async (nextPayload) => supabase.from("drivers").insert([nextPayload]).select().single(),
+        payload
+      );
       setDrivers(prev => [data, ...prev]);
       return data;
     } catch (err: any) {
       console.error("Erro ao adicionar motorista:", err);
-      throw err;
+      throw humanizeWriteError(err, "motorista");
     }
   };
 
   const updateDriver = async (id: string, updates: Partial<Driver>) => {
     try {
-      let payload: Record<string, unknown> = { ...updates };
-      let { data, error: err } = await supabase.from("drivers").update(payload).eq("id", id).select().single();
-      if (err && isMissingColumnError(err)) {
-        payload = withoutOptionalCnhColumns(payload);
-        const retry = await supabase.from("drivers").update(payload).eq("id", id).select().single();
-        data = retry.data;
-        err = retry.error;
-      }
-      if (err) throw err;
+      const payload = pickDriverPayload(updates as Record<string, unknown>);
+      const data = await writeWithColumnFallback<Driver>(
+        async (nextPayload) => supabase.from("drivers").update(nextPayload).eq("id", id).select().single(),
+        payload
+      );
       setDrivers(prev => prev.map(d => d.id === id ? data : d));
       return data;
     } catch (err: any) {
       console.error("Erro ao atualizar motorista:", err);
-      throw err;
+      throw humanizeWriteError(err, "motorista");
     }
   };
 

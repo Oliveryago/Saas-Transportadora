@@ -41,6 +41,23 @@ function toDateInputValue(value?: string | null): string {
   return `${year}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
 }
 
+function toSqlDate(value?: string | null): string | null {
+  const iso = toDateInputValue(value);
+  if (!iso) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day ||
+    year < 1900 ||
+    year > 2200
+  ) {
+    return null;
+  }
+  return iso;
+}
+
 interface MotoristaFormProps {
   onSubmit: (data: any) => Promise<void>;
   initialData?: Partial<Driver>;
@@ -88,6 +105,8 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialData?.photo_url || null);
   const [cnhFileName, setCnhFileName] = useState<string | null>(initialData?.cnh_file_name || null);
   const [cnhUploadError, setCnhUploadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleCnhUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -228,27 +247,35 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Sanitize empty strings to null for UUID and DATE columns
+    setSaveError(null);
+    setSaving(true);
+
     const sanitizedData = {
       ...formData,
       vehicle_id: formData.vehicle_id || null,
       implement_id: formData.implement_id || null,
       implement2_id: formData.implement2_id || null,
-      data_nascimento: formData.data_nascimento || null,
-      validade_cnh: formData.validade_cnh || null,
-      data_primeira_habilitacao: formData.data_primeira_habilitacao || null,
+      data_nascimento: toSqlDate(formData.data_nascimento),
+      validade_cnh: toSqlDate(formData.validade_cnh),
+      data_primeira_habilitacao: toSqlDate(formData.data_primeira_habilitacao),
       numero_espelho: formData.numero_espelho || null,
       cnh_url: formData.cnh_url || null,
       cnh_uploaded_at: formData.cnh_uploaded_at || null,
       cnh_file_name: formData.cnh_file_name || null,
-      start_date: formData.start_date || null,
-      end_date: formData.end_date || null,
+      start_date: toSqlDate(formData.start_date),
+      end_date: toSqlDate(formData.end_date),
     };
-    
-    onSubmit(sanitizedData);
+
+    try {
+      await onSubmit(sanitizedData);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao salvar motorista.";
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -512,13 +539,19 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
         </div>
       </div>
 
-      <div className="pt-4 flex justify-end gap-3 border-t">
+      <div className="pt-4 flex flex-col items-end gap-3 border-t">
+        {saveError && (
+          <div className="w-full flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <p>{saveError}</p>
+          </div>
+        )}
         <button
           type="submit"
-          disabled={isProcessingOCR || uploadingPhoto || uploadingCnh}
+          disabled={isProcessingOCR || uploadingPhoto || uploadingCnh || saving}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50"
         >
-          {initialData ? "Atualizar Motorista" : "Salvar Motorista"}
+          {saving ? "Salvando..." : initialData ? "Atualizar Motorista" : "Salvar Motorista"}
         </button>
       </div>
     </form>
