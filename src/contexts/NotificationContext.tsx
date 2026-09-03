@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { supabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
+import { fetchOperationalAlerts, type OperationalAlertCategory } from "../services/operationalAlerts";
 
 export interface Notification {
   id: string;
@@ -9,6 +9,8 @@ export interface Notification {
   date: string;
   read: boolean;
   type: "info" | "warning" | "success" | "error";
+  path?: string;
+  category?: OperationalAlertCategory;
 }
 
 interface NotificationContextProps {
@@ -27,109 +29,92 @@ const NotificationContext = createContext<NotificationContextProps>({
   clearAll: () => {},
 });
 
+function dismissedKey(tenantId: string) {
+  return `notif_dismissed_${tenantId}`;
+}
+
+function loadDismissed(tenantId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(dismissedKey(tenantId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissed(tenantId: string, ids: Set<string>) {
+  localStorage.setItem(dismissedKey(tenantId), JSON.stringify([...ids]));
+}
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { tenant } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Load from local storage initially
-  useEffect(() => {
-    if (user?.tenant_id) {
-      const saved = localStorage.getItem(`notifications_${user.tenant_id}`);
-      if (saved) {
-        try {
-          setNotifications(JSON.parse(saved));
-        } catch (e) {
-          console.error("Failed to parse notifications");
+  const refreshAlerts = useCallback(async () => {
+    if (!tenant?.id) {
+      setNotifications([]);
+      return;
+    }
+
+    try {
+      const alerts = await fetchOperationalAlerts(tenant.id);
+      const stored = loadDismissed(tenant.id);
+      const currentIds = new Set(alerts.map((alert) => alert.id));
+      let pruned = false;
+      for (const id of [...stored]) {
+        if (!currentIds.has(id)) {
+          stored.delete(id);
+          pruned = true;
         }
       }
-    }
-  }, [user?.tenant_id]);
+      if (pruned) saveDismissed(tenant.id, stored);
 
-  // Save to local storage when changed
-  useEffect(() => {
-    if (user?.tenant_id && notifications.length > 0) {
-      localStorage.setItem(`notifications_${user.tenant_id}`, JSON.stringify(notifications.slice(0, 50))); // Keep last 50
+      setNotifications(
+        alerts.map((alert) => ({
+          ...alert,
+          read: stored.has(alert.id),
+        }))
+      );
+    } catch (error) {
+      console.error("Failed to load operational alerts", error);
     }
-  }, [notifications, user?.tenant_id]);
-
-  const addNotification = useCallback((notif: Omit<Notification, "id" | "date" | "read">) => {
-    setNotifications((prev) => [
-      {
-        ...notif,
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
-        read: false,
-      },
-      ...prev,
-    ]);
-  }, []);
+  }, [tenant?.id]);
 
   useEffect(() => {
-    if (!user?.tenant_id) return;
-
-    // Listen to changes in important tables
-    const maintChannel = supabase
-      .channel("maintenance_inserts")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "maintenance_records",
-          filter: `tenant_id=eq.${user.tenant_id}`,
-        },
-        (payload) => {
-          // If the user itself made the change, we could skip it, but let's just show it for demo
-          addNotification({
-            title: "Nova Manutenção",
-            message: `Registro adicionado no valor de R$ ${payload.new.value_brl || 0}`,
-            type: "warning",
-          });
-        }
-      )
-      .subscribe();
-
-    const fuelChannel = supabase
-      .channel("fuel_inserts")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "fuel_records",
-          filter: `tenant_id=eq.${user.tenant_id}`,
-        },
-        (payload) => {
-          addNotification({
-            title: "Novo Abastecimento",
-            message: `${payload.new.liters} litros registrados em ${payload.new.fuel_station || "Posto"}`,
-            type: "info",
-          });
-        }
-      )
-      .subscribe();
-
+    refreshAlerts();
+    const interval = window.setInterval(refreshAlerts, 120_000);
+    const onFocus = () => refreshAlerts();
+    window.addEventListener("focus", onFocus);
     return () => {
-      supabase.removeChannel(maintChannel);
-      supabase.removeChannel(fuelChannel);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
     };
-  }, [user?.tenant_id, addNotification]);
+  }, [refreshAlerts]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   function markAsRead(id: string) {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    if (!tenant?.id) return;
+    setNotifications((prev) => prev.map((notification) => (
+      notification.id === id ? { ...notification, read: true } : notification
+    )));
+    const next = loadDismissed(tenant.id);
+    next.add(id);
+    saveDismissed(tenant.id, next);
   }
 
   function markAllAsRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (!tenant?.id) return;
+    setNotifications((prev) => {
+      const next = new Set(prev.map((notification) => notification.id));
+      saveDismissed(tenant.id, next);
+      return prev.map((notification) => ({ ...notification, read: true }));
+    });
   }
 
   function clearAll() {
-    setNotifications([]);
-    if (user?.tenant_id) {
-      localStorage.removeItem(`notifications_${user.tenant_id}`);
-    }
+    markAllAsRead();
   }
 
   return (

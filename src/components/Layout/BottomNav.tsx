@@ -101,7 +101,7 @@ export function BottomNav() {
               Menu Completo
             </h2>
             <div className="flex items-center gap-2">
-                <NotificationBell />
+                <NotificationBell variant="light" />
                 <button
                   onClick={() => setMenuOpen(false)}
                   className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
