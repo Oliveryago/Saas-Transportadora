@@ -1,4 +1,4 @@
-import { invokeExtractFunction, asText } from "../ocr/documentOcrClient";
+import { invokeExtractFunction, asText, OcrError } from "../ocr/documentOcrClient";
 export { OcrError } from "../ocr/documentOcrClient";
 export type { OcrErrorCode } from "../ocr/documentOcrClient";
 
@@ -69,6 +69,28 @@ export const ocrService = {
     return clean(ocrData.cpf || "") === clean(manualData.cpf || "");
   },
 };
+
+export function getDocumentOcrUserMessage(error: unknown, documentLabel = "documento"): string {
+  if (error instanceof OcrError) {
+    switch (error.code) {
+      case "network":
+      case "timeout":
+        return "Sem conexão com o servidor, tente novamente.";
+      case "unreadable":
+      case "parse":
+        return `Não conseguimos ler o ${documentLabel}. Tente uma foto mais nítida ou preencha manualmente.`;
+      case "invalid_file":
+        return error.message || "Arquivo inválido. Envie uma foto JPG/PNG ou um PDF.";
+      case "too_large":
+        return "O arquivo é muito grande. Envie um JPG/PNG ou PDF de até 10 MB.";
+      case "auth":
+        return `Não foi possível processar o ${documentLabel} agora. Preencha manualmente.`;
+      default:
+        return `Houve um erro ao processar o ${documentLabel}. Preencha manualmente.`;
+    }
+  }
+  return `Houve um erro ao processar o ${documentLabel}. Preencha manualmente.`;
+}
 
 export function crlvFieldsFromOcr(ocr: VehicleDocOcrResult, crlvUrl?: string) {
   const yearModel = parseInt(ocr.ano_modelo, 10);

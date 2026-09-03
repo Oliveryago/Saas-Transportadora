@@ -10,14 +10,15 @@ import ImplementModal from "../components/implements/ImplementModal";
 import { IMPLEMENT_TYPE_LABELS } from "../types";
 import type { Vehicle, Implement } from "../types";
 import { generateVehicleSheet } from "../services/documentGenerator";
+import { DriverCnhActions } from "../components/motorista/DriverCnhActions";
 import { urlToDataURL } from "../services/companySettingsHelper";
 import { supabase } from "../lib/supabase";
 
 export function Fleet() {
   const { user, tenant, signOut } = useAuth();
   const { settings: companySettings } = useCompanySettings();
-  const { vehicles, deleteVehicle } = useVehicles();
-  const { implements: implements_, deleteImplement } = useImplements();
+  const { vehicles, deleteVehicle, getVehicleDocSignedUrl } = useVehicles();
+  const { implements: implements_, deleteImplement, getImplementDocSignedUrl } = useImplements();
   const navigate = useNavigate();
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [implementModalOpen, setImplementModalOpen] = useState(false);
@@ -230,6 +231,17 @@ export function Fleet() {
                       </p>
                     </div>
                   </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <DriverCnhActions
+                      cnhUrl={vehicle.crlv_url}
+                      fileName={vehicle.crlv_file_name}
+                      getSignedUrl={getVehicleDocSignedUrl}
+                      emptyLabel="Sem documento anexado"
+                      viewTitle="Visualizar documento"
+                      downloadTitle="Baixar documento"
+                      defaultFileName="crlv.pdf"
+                    />
+                  </div>
                 </div>
               ))}
 
@@ -289,6 +301,15 @@ export function Fleet() {
                       </button>
                     </div>
                   </div>
+                  <DriverCnhActions
+                    cnhUrl={impl.crlv_url}
+                    fileName={impl.crlv_file_name}
+                    getSignedUrl={getImplementDocSignedUrl}
+                    emptyLabel="Sem documento anexado"
+                    viewTitle="Visualizar documento"
+                    downloadTitle="Baixar documento"
+                    defaultFileName="crlv.pdf"
+                  />
                 </div>
               ))}
 

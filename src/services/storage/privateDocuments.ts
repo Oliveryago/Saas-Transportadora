@@ -1,4 +1,5 @@
 import { supabase } from "../../lib/supabase";
+import { fileToCnhPdf, validateCnhFile } from "../../utils/cnhDocument";
 
 const SIGNED_TTL_SEC = 60 * 60;
 
@@ -14,17 +15,28 @@ export async function uploadPrivateDocument(
   tenantId: string,
   file: File,
 ): Promise<{ path: string; fileName: string }> {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-  const safeExt = ["pdf", "jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "bin";
-  const original = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || `documento.${safeExt}`;
+  const validationError = validateCnhFile(file);
+  if (validationError) throw new Error(validationError);
+
+  let toUpload = file;
+  try {
+    toUpload = await fileToCnhPdf(file);
+  } catch (err) {
+    console.warn("Falha ao converter documento para PDF; salvando o arquivo original.", err);
+    toUpload = file;
+  }
+
+  const ext = toUpload.name.split(".").pop()?.toLowerCase() || "pdf";
+  const safeExt = ["pdf", "jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "pdf";
+  const original = toUpload.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || `documento.${safeExt}`;
   const path = `${tenantId}/${crypto.randomUUID()}_${original}`;
 
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, toUpload, { contentType: toUpload.type || "application/pdf", upsert: false });
 
   if (error) throw error;
-  return { path, fileName: file.name };
+  return { path, fileName: toUpload.name };
 }
 
 export async function getPrivateDocumentSignedUrl(bucket: string, stored: string): Promise<string | null> {

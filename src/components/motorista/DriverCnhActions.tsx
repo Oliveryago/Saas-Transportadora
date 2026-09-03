@@ -6,22 +6,30 @@ interface DriverCnhActionsProps {
   cnhUrl?: string | null;
   fileName?: string | null;
   getSignedUrl: (path: string) => Promise<string | null>;
+  emptyLabel?: string;
+  viewTitle?: string;
+  downloadTitle?: string;
+  defaultFileName?: string;
 }
 
 export const DriverCnhActions: React.FC<DriverCnhActionsProps> = ({
   cnhUrl,
   fileName,
   getSignedUrl,
+  emptyLabel = "Sem CNH anexada",
+  viewTitle = "Visualizar CNH",
+  downloadTitle = "Baixar CNH",
+  defaultFileName = "cnh.pdf",
 }) => {
   const [busy, setBusy] = useState<"view" | "download" | null>(null);
 
   if (!cnhUrl) {
-    return <span className="text-xs text-gray-400">Sem CNH anexada</span>;
+    return <span className="text-xs text-gray-400">{emptyLabel}</span>;
   }
 
   const resolveUrl = async () => {
     const url = await getSignedUrl(cnhUrl);
-    if (!url) throw new Error("Link da CNH indisponível.");
+    if (!url) throw new Error("Link do documento indisponível.");
     return url;
   };
 
@@ -33,7 +41,7 @@ export const DriverCnhActions: React.FC<DriverCnhActionsProps> = ({
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       console.error(err);
-      alert("Não foi possível abrir a CNH.");
+      alert(`Não foi possível abrir o documento.`);
     } finally {
       setBusy(null);
     }
@@ -44,10 +52,10 @@ export const DriverCnhActions: React.FC<DriverCnhActionsProps> = ({
     setBusy("download");
     try {
       const url = await resolveUrl();
-      await downloadFromUrl(url, fileName || "cnh.pdf");
+      await downloadFromUrl(url, fileName || defaultFileName);
     } catch (err) {
       console.error(err);
-      alert("Não foi possível baixar a CNH.");
+      alert("Não foi possível baixar o documento.");
     } finally {
       setBusy(null);
     }
@@ -60,7 +68,7 @@ export const DriverCnhActions: React.FC<DriverCnhActionsProps> = ({
         onClick={handleView}
         disabled={!!busy}
         className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold uppercase text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
-        title="Visualizar CNH"
+        title={viewTitle}
       >
         {busy === "view" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
         Visualizar
@@ -70,7 +78,7 @@ export const DriverCnhActions: React.FC<DriverCnhActionsProps> = ({
         onClick={handleDownload}
         disabled={!!busy}
         className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold uppercase text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
-        title="Baixar CNH"
+        title={downloadTitle}
       >
         {busy === "download" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
         Baixar

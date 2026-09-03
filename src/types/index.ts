@@ -110,6 +110,8 @@ export interface Vehicle {
   load_capacity?: string;
   crlv_category?: string;
   crlv_url?: string | null;
+  crlv_uploaded_at?: string | null;
+  crlv_file_name?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -130,6 +132,8 @@ export interface Implement {
   load_capacity?: string;
   crlv_category?: string;
   crlv_url?: string | null;
+  crlv_uploaded_at?: string | null;
+  crlv_file_name?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
