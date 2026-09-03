@@ -235,18 +235,18 @@ export const MotoristaForm: React.FC<MotoristaFormProps> = ({ onSubmit, initialD
               <input type="text" placeholder="(11) 99999-9999" className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
             </div>
 
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_5.25rem_15rem] gap-4">
-              <div className="space-y-1 min-w-0">
+            <div className="md:col-span-2 flex flex-col md:flex-row gap-4">
+              <div className="space-y-1 min-w-0 flex-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase">Número da CNH</label>
                 <input type="text" className="w-full min-w-0 px-4 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.numero_cnh} onChange={e => setFormData({ ...formData, numero_cnh: e.target.value })} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 w-24 shrink-0">
                 <label className="text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Categoria</label>
                 <input type="text" placeholder="Ex: E" className="w-full px-1 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none text-center uppercase" value={formData.categoria_cnh} onChange={e => setFormData({ ...formData, categoria_cnh: e.target.value.toUpperCase() })} />
               </div>
-              <div className="space-y-1 min-w-0">
+              <div className="space-y-1 w-64 shrink-0">
                 <label className="text-xs font-semibold text-gray-500 uppercase">Validade</label>
-                <input type="date" className="w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.validade_cnh} onChange={e => setFormData({ ...formData, validade_cnh: e.target.value })} />
+                <input type="date" className="w-full min-w-64 px-3 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.validade_cnh} onChange={e => setFormData({ ...formData, validade_cnh: e.target.value })} />
               </div>
             </div>
           </div>
