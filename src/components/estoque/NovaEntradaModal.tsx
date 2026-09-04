@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, QrCode, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEstoque } from '../../hooks/useEstoque';
+import { usePneusIndividuais } from '../../hooks/usePneusIndividuais';
 import type { CategoriaItem, ItemEstoque, UnidadeMedida } from '../../types/estoque';
+import { extractNfeKey, itemEhRastreavel } from '../../types/pneu';
+import { QRCodeScanner } from '../shared/QRCodeScanner';
+import { getLocalDateString } from '../../lib/utils/date';
 
 interface Props {
   itens: ItemEstoque[];
@@ -28,6 +32,7 @@ const UNIDADES: { value: UnidadeMedida; label: string }[] = [
 export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
   const { tenant } = useAuth();
   const { registrarEntrada, criarItem } = useEstoque();
+  const { criarLoteEntrada } = usePneusIndividuais();
 
   // Combobox state
   const [busca, setBusca] = useState('');
@@ -45,6 +50,14 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
   const [novaCategoria, setNovaCategoria] = useState<CategoriaItem>('outro');
   const [novaUnidade, setNovaUnidade] = useState<UnidadeMedida>('unidade');
   const [estoqueMinimo, setEstoqueMinimo] = useState('1');
+  const [rastreavelNovo, setRastreavelNovo] = useState(false);
+  const [marca, setMarca] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [medida, setMedida] = useState('');
+  const [notaFiscal, setNotaFiscal] = useState('');
+  const [fornecedor, setFornecedor] = useState('');
+  const [dataCompra, setDataCompra] = useState(getLocalDateString());
+  const [lerQr, setLerQr] = useState(false);
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -71,6 +84,9 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
 
   const buscaNaoEncontrada = busca.trim().length > 0 && itensFiltrados.length === 0;
   const nomeLimpo = busca.trim();
+  const itemRastreavel = itemSelecionado
+    ? itemEhRastreavel(itemSelecionado)
+    : criandoNovo && rastreavelNovo;
 
   function selecionarItem(item: ItemEstoque) {
     setItemSelecionado(item);
@@ -117,6 +133,7 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
           unidade_medida: novaUnidade,
           estoque_minimo: Number(estoqueMinimo) || 1,
           tenant_id: tenant.id,
+          rastreavel_individualmente: rastreavelNovo || novaCategoria === 'pneu',
         });
         idItem = novoItem.id;
       }
@@ -126,6 +143,31 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
         quantidade: Number(quantidade),
         valorUnitario: Number(valorUnitario),
       });
+
+      const gerarIndividuais = itemSelecionado
+        ? itemEhRastreavel(itemSelecionado)
+        : rastreavelNovo || novaCategoria === 'pneu';
+
+      if (gerarIndividuais) {
+        const qtd = Math.floor(Number(quantidade));
+        if (qtd < 1) throw new Error('Para pneus rastreáveis, informe uma quantidade inteira.');
+        try {
+          await criarLoteEntrada({
+            itemId: idItem,
+            quantidade: qtd,
+            valorUnitario: Number(valorUnitario),
+            marca,
+            modelo,
+            medida,
+            notaFiscal,
+            fornecedor,
+            dataCompra,
+          });
+        } catch (pneuErr) {
+          console.error(pneuErr);
+          alert('A entrada de estoque foi salva, mas os códigos de marcação de fogo não foram gerados. Rode o SQL de pneus individuais no Supabase e tente de novo só a marcação, se necessário.');
+        }
+      }
 
       onSaved();
     } catch (e) {
@@ -137,7 +179,7 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-xl">
+      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base font-semibold text-slate-900">Nova entrada de estoque</h2>
           <button onClick={onClose} aria-label="Fechar">
@@ -243,7 +285,11 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
                   <label className="text-xs text-slate-500">Categoria</label>
                   <select
                     value={novaCategoria}
-                    onChange={(e) => setNovaCategoria(e.target.value as CategoriaItem)}
+                    onChange={(e) => {
+                      const next = e.target.value as CategoriaItem;
+                      setNovaCategoria(next);
+                      setRastreavelNovo(next === 'pneu');
+                    }}
                     className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-1 bg-white"
                   >
                     {CATEGORIAS.map((c) => (
@@ -278,6 +324,15 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
                   className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-1"
                 />
               </div>
+              <label className="flex items-start gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={rastreavelNovo}
+                  onChange={(e) => setRastreavelNovo(e.target.checked)}
+                />
+                <span>Rastreável individualmente (gera um código de marcação de fogo por unidade)</span>
+              </label>
             </div>
           )}
 
@@ -306,6 +361,59 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
             />
           </div>
 
+          {itemRastreavel && (
+            <div className="space-y-3 border border-orange-100 bg-orange-50 rounded-lg p-3">
+              <p className="text-xs font-medium text-orange-800">Dados da nota / pneu (marcação de fogo)</p>
+              <div>
+                <label className="text-xs text-slate-500">Nota fiscal / chave de acesso</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={notaFiscal}
+                    onChange={(e) => setNotaFiscal(e.target.value)}
+                    placeholder="Chave da NF-e ou número da nota"
+                    className="flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLerQr(true)}
+                    className="px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-white"
+                    title="Ler QR da nota"
+                  >
+                    <QrCode size={16} />
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500">Fornecedor</label>
+                  <input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Data da compra</label>
+                  <input type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 bg-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500">Marca</label>
+                  <input value={marca} onChange={(e) => setMarca(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Modelo</label>
+                  <input value={modelo} onChange={(e) => setModelo(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Medida</label>
+                  <input value={medida} onChange={(e) => setMedida(e.target.value)} placeholder="275/80R22.5" className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
+                </div>
+              </div>
+              <p className="text-[11px] text-orange-700">
+                Cada unidade gera um código (PNEU-ANO-00001) com status “aguardando marcação”.
+              </p>
+            </div>
+          )}
+
           {erro && <p className="text-xs text-red-500">{erro}</p>}
         </div>
 
@@ -325,6 +433,17 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
           </button>
         </div>
       </div>
+      {lerQr && (
+        <QRCodeScanner
+          title="QR da nota fiscal"
+          placeholder="Cole a chave de 44 dígitos"
+          onScan={(value) => {
+            setNotaFiscal(extractNfeKey(value));
+            setLerQr(false);
+          }}
+          onClose={() => setLerQr(false)}
+        />
+      )}
     </div>
   );
 }

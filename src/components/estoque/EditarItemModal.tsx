@@ -33,6 +33,7 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
   const [estoqueMinimo, setEstoqueMinimo] = useState(String(item.estoque_minimo));
   const [estoqueAtual, setEstoqueAtual] = useState(String(item.estoque_atual));
   const [custoMedio, setCustoMedio] = useState(String(item.custo_medio));
+  const [rastreavel, setRastreavel] = useState(item.rastreavel_individualmente ?? item.categoria === 'pneu');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
     setEstoqueMinimo(String(item.estoque_minimo));
     setEstoqueAtual(String(item.estoque_atual));
     setCustoMedio(String(item.custo_medio));
+    setRastreavel(item.rastreavel_individualmente ?? item.categoria === 'pneu');
     setErro(null);
   }, [item.id]);
 
@@ -62,6 +64,7 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
         estoque_minimo: Number(estoqueMinimo) || 0,
         estoque_atual: Number(estoqueAtual) || 0,
         custo_medio: Number(custoMedio) || 0,
+        rastreavel_individualmente: rastreavel,
       });
       onSaved();
     } catch (e) {
@@ -102,7 +105,11 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
               <label className="text-xs font-medium text-slate-500">Categoria</label>
               <select
                 value={categoria}
-                onChange={(e) => setCategoria(e.target.value as CategoriaItem)}
+                onChange={(e) => {
+                  const next = e.target.value as CategoriaItem;
+                  setCategoria(next);
+                  if (next === 'pneu') setRastreavel(true);
+                }}
                 className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:border-blue-400"
               >
                 {CATEGORIAS.map((c) => (
@@ -170,6 +177,21 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
               <p className="text-[11px] text-slate-400 mt-1">Corrija se o custo estiver errado.</p>
             </div>
           </div>
+
+          </div>
+
+          <label className="flex items-start gap-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={rastreavel}
+              onChange={(e) => setRastreavel(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">Rastreável individualmente</span>
+              <span className="block text-[11px] text-slate-500">Marque para pneus: cada unidade ganha código de marcação de fogo. Óleo, filtro e demais itens continuam por saldo.</span>
+            </span>
+          </label>
 
           {erro && <p className="text-xs text-red-500">{erro}</p>}
         </div>

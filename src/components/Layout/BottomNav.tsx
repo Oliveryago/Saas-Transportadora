@@ -19,7 +19,8 @@ import {
   Users,
   BarChart2,
   Search,
-  UserCircle
+    UserCircle,
+    Flame
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { NotificationBell } from "../shared/NotificationBell";
@@ -42,6 +43,7 @@ export function BottomNav() {
     { to: "#search", icon: Search, label: "Busca Rápida", action: () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true })), allowedRoles: ["superadmin", "admin", "manager", "driver"] },
     { to: "/oil-change", icon: Droplet, label: "Troca de Óleo", allowedRoles: ["superadmin", "admin", "manager"] },
     { to: "/tire-change", icon: Disc, label: "Troca de Pneus", allowedRoles: ["superadmin", "admin", "manager"] },
+    { to: "/pneus/aguardando", icon: Flame, label: "Marcação de pneus", allowedRoles: ["superadmin", "admin", "manager"] },
     { to: "/rotation", icon: RefreshCcw, label: "Rodízio", allowedRoles: ["superadmin", "admin", "manager"] },
     { to: "/washing", icon: SprayCan, label: "Lavagem", allowedRoles: ["superadmin", "admin", "manager"] },
     { to: "/parking", icon: Car, label: "Estacionar", allowedRoles: ["superadmin", "admin", "manager"] },

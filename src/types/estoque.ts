@@ -13,6 +13,7 @@ export interface ItemEstoque {
   custo_medio: number;
   ativo: boolean;
   criado_em: string;
+  rastreavel_individualmente?: boolean;
 }
 
 export interface Fornecedor {

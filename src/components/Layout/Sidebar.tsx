@@ -18,6 +18,7 @@ import {
     Building2,
     BarChart2,
     ArrowLeft,
+    Flame,
     Search,
     UserCircle,
     Package
@@ -39,6 +40,7 @@ export function Sidebar() {
         { to: "/tire-change", icon: Disc, label: "Troca de Pneus", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/rotation", icon: RefreshCcw, label: "Rodízio", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/estoque", icon: Package, label: "Estoque", allowedRoles: ["superadmin", "admin", "manager"] },
+        { to: "/pneus/aguardando", icon: Flame, label: "Marcação de pneus", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/washing", icon: SprayCan, label: "Lavagem", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/parking", icon: Car, label: "Estacionamento", allowedRoles: ["superadmin", "admin", "manager"] },
         { to: "/tolls", icon: Ticket, label: "Pedágios", allowedRoles: ["superadmin", "admin", "manager"] },

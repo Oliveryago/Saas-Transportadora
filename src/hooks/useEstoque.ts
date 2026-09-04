@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { writeWithColumnFallback } from '../lib/supabaseWrite';
 import type {
   ItemEstoque,
   MovimentacaoEstoque,
@@ -34,11 +35,20 @@ export function useEstoque() {
   }, [carregarItens]);
 
   const criarItem = useCallback(
-    async (item: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo'> & { tenant_id: string }) => {
-      const { data, error } = await supabase.from('itens_estoque').insert(item).select().single();
-      if (error) throw error;
+    async (item: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo'> & {
+      tenant_id: string;
+      rastreavel_individualmente?: boolean;
+    }) => {
+      const payload: Record<string, unknown> = {
+        ...item,
+        rastreavel_individualmente: item.rastreavel_individualmente ?? item.categoria === 'pneu',
+      };
+      const data = await writeWithColumnFallback<ItemEstoque>(
+        async (next) => supabase.from('itens_estoque').insert(next).select().single(),
+        payload
+      );
       await carregarItens();
-      return data as ItemEstoque;
+      return data;
     },
     [carregarItens]
   );
@@ -46,13 +56,14 @@ export function useEstoque() {
   const editarItem = useCallback(
     async (
       id: string,
-      updates: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo' | 'estoque_atual' | 'custo_medio'>
+      updates: Pick<ItemEstoque, 'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo' | 'estoque_atual' | 'custo_medio'> & {
+        rastreavel_individualmente?: boolean;
+      }
     ) => {
-      const { error } = await supabase
-        .from('itens_estoque')
-        .update(updates)
-        .eq('id', id);
-      if (error) throw error;
+      await writeWithColumnFallback<ItemEstoque>(
+        async (next) => supabase.from('itens_estoque').update(next).eq('id', id).select().single(),
+        updates as Record<string, unknown>
+      );
       await carregarItens();
     },
     [carregarItens]

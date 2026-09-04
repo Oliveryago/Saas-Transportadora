@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, CircleDot, Droplet, Filter, Package, Pencil, Plus, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, CircleDot, Droplet, Filter, Flame, Package, Pencil, Plus, Zap } from 'lucide-react';
 import { useEstoque } from '../hooks/useEstoque';
 import type { CategoriaItem, ItemEstoque } from '../types/estoque';
 import { NovaEntradaModal } from '../components/estoque/NovaEntradaModal';
@@ -41,13 +42,22 @@ export function EstoquePage() {
           <h1 className="text-xl font-semibold text-slate-900">Estoque de peças</h1>
           <p className="text-sm text-slate-500">Controle de peças e insumos da frota</p>
         </div>
-        <button
-          onClick={() => setModalAberto(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          Nova entrada
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/pneus/aguardando"
+            className="flex items-center gap-2 border border-slate-200 text-slate-700 text-sm px-4 py-2 rounded-md hover:bg-slate-50"
+          >
+            <Flame size={16} />
+            Marcação de fogo
+          </Link>
+          <button
+            onClick={() => setModalAberto(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            Nova entrada
+          </button>
+        </div>
       </div>
 
       <div className="bg-gradient-to-r from-blue-600 to-violet-600 rounded-xl p-6 text-white flex items-center justify-between mb-5">
