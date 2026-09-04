@@ -178,8 +178,6 @@ export function EditarItemModal({ item, onClose, onSaved }: Props) {
             </div>
           </div>
 
-          </div>
-
           <label className="flex items-start gap-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
             <input
               type="checkbox"
