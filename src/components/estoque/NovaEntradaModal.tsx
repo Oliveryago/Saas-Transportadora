@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useEstoque } from '../../hooks/useEstoque';
 import { usePneusIndividuais } from '../../hooks/usePneusIndividuais';
 import type { CategoriaItem, ItemEstoque, UnidadeMedida } from '../../types/estoque';
-import { extractNfeKey, itemEhRastreavel } from '../../types/pneu';
+import { extractNfeKey, itemEhRastreavel, nomeParecePneu } from '../../types/pneu';
 import { QRCodeScanner } from '../shared/QRCodeScanner';
 import { getLocalDateString } from '../../lib/utils/date';
 
@@ -82,11 +82,11 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
     item.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
-  const buscaNaoEncontrada = busca.trim().length > 0 && itensFiltrados.length === 0;
   const nomeLimpo = busca.trim();
+  const parecePneu = nomeParecePneu(nomeLimpo);
   const itemRastreavel = itemSelecionado
     ? itemEhRastreavel(itemSelecionado)
-    : criandoNovo && rastreavelNovo;
+    : rastreavelNovo || novaCategoria === 'pneu' || parecePneu;
 
   function selecionarItem(item: ItemEstoque) {
     setItemSelecionado(item);
@@ -99,6 +99,10 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
     setItemSelecionado(null);
     setCriandoNovo(true);
     setDropdownAberto(false);
+    if (nomeParecePneu(nomeLimpo)) {
+      setNovaCategoria('pneu');
+      setRastreavelNovo(true);
+    }
   }
 
   function limparSelecao() {
@@ -124,16 +128,22 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
     try {
       let idItem = itemSelecionado?.id;
 
+      const gerarIndividuais = itemSelecionado
+        ? itemEhRastreavel(itemSelecionado)
+        : rastreavelNovo || novaCategoria === 'pneu' || nomeParecePneu(nomeLimpo);
+      const categoriaFinal: CategoriaItem =
+        novaCategoria === 'pneu' || nomeParecePneu(nomeLimpo) ? 'pneu' : novaCategoria;
+
       if (!idItem) {
         // Criar novo item
         if (!tenant?.id) throw new Error('Tenant não identificado.');
         const novoItem = await criarItem({
           nome: nomeLimpo,
-          categoria: novaCategoria,
+          categoria: categoriaFinal,
           unidade_medida: novaUnidade,
           estoque_minimo: Number(estoqueMinimo) || 1,
           tenant_id: tenant.id,
-          rastreavel_individualmente: rastreavelNovo || novaCategoria === 'pneu',
+          rastreavel_individualmente: gerarIndividuais,
         });
         idItem = novoItem.id;
       }
@@ -143,10 +153,6 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
         quantidade: Number(quantidade),
         valorUnitario: Number(valorUnitario),
       });
-
-      const gerarIndividuais = itemSelecionado
-        ? itemEhRastreavel(itemSelecionado)
-        : rastreavelNovo || novaCategoria === 'pneu';
 
       if (gerarIndividuais) {
         const qtd = Math.floor(Number(quantidade));
@@ -199,10 +205,15 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
                   placeholder="Digite ou selecione uma peça..."
                   value={busca}
                   onChange={(e) => {
-                    setBusca(e.target.value);
+                    const next = e.target.value;
+                    setBusca(next);
                     setItemSelecionado(null);
                     setCriandoNovo(false);
                     setDropdownAberto(true);
+                    if (nomeParecePneu(next)) {
+                      setNovaCategoria('pneu');
+                      setRastreavelNovo(true);
+                    }
                   }}
                   onFocus={() => setDropdownAberto(true)}
                   className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"

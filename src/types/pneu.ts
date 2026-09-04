@@ -52,10 +52,19 @@ export const PNEU_STATUS_LABEL: Record<PneuStatus, string> = {
   descartado: "Descartado",
 };
 
-export function itemEhRastreavel(item: { categoria?: string; rastreavel_individualmente?: boolean } | null | undefined): boolean {
+export function nomeParecePneu(nome?: string | null): boolean {
+  return /\bpneus?\b/i.test(String(nome || "").trim());
+}
+
+export function itemEhRastreavel(item: {
+  nome?: string;
+  categoria?: string;
+  rastreavel_individualmente?: boolean;
+} | null | undefined): boolean {
   if (!item) return false;
-  if (typeof item.rastreavel_individualmente === "boolean") return item.rastreavel_individualmente;
-  return item.categoria === "pneu";
+  if (item.rastreavel_individualmente === true) return true;
+  if (item.categoria === "pneu") return true;
+  return nomeParecePneu(item.nome);
 }
 
 export function extractNfeKey(raw: string): string {
