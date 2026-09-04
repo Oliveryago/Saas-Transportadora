@@ -182,6 +182,14 @@ export interface FuelRecord {
   updated_at: string;
 }
 
+export interface MaintenancePart {
+  name: string;
+  cost?: number;
+  quantity?: number;
+  origin?: "estoque" | "avulsa";
+  item_id?: string;
+}
+
 export interface MaintenanceRecord {
   id: string;
   tenant_id: string;
@@ -192,7 +200,7 @@ export interface MaintenanceRecord {
   value_brl?: number;
   km?: number;
   date: string;
-  parts: Array<{ name: string; cost?: number }>;
+  parts: MaintenancePart[];
   invoice_photo_url?: string;
   created_at: string;
   updated_at: string;

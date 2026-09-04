@@ -210,9 +210,9 @@ export async function generateMaintenanceOS(data: MaintenanceOSData): Promise<vo
       head: [["Descrição", "Qtd", "Custo Unitário", "Subtotal"]],
       body: data.parts.map((p) => [
         p.name,
-        p.quantity,
+        p.quantity || 1,
         formatBRL(p.cost),
-        formatBRL(p.quantity * p.cost),
+        formatBRL((p.quantity || 1) * p.cost),
       ]),
       theme: "grid",
       headStyles: { fillColor: [79, 70, 229] },

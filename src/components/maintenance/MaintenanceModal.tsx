@@ -3,10 +3,20 @@ import { X } from "lucide-react";
 import { useMaintenanceRecords } from "../../hooks/useMaintenanceRecords";
 import { useVehicles } from "../../hooks/useVehicles";
 import { useImplements } from "../../hooks/useImplements";
+import { useEstoque } from "../../hooks/useEstoque";
 import type { MaintenanceRecord } from "../../types";
 import { getLocalDateString } from "../../lib/utils/date";
-import { SeletorOrigemCusto } from "../estoque/SeletorOrigemCusto";
+import { formatBRL } from "../../lib/utils/money";
 import { supabase } from "../../lib/supabase";
+import {
+  PecasManutencaoFields,
+  emptyPecaLinha,
+  linhasFromParts,
+  partsTotal,
+  toMaintenanceParts,
+  validatePecaLinhas,
+  type PecaLinha,
+} from "./PecasManutencaoFields";
 
 interface MaintenanceModalProps {
     open: boolean;
@@ -18,19 +28,16 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
     const { addRecord, updateRecord } = useMaintenanceRecords();
     const { vehicles } = useVehicles();
     const { implements: implements_ } = useImplements();
+    const { itens, registrarSaida } = useEstoque();
 
     const [type, setType] = useState("");
     const [description, setDescription] = useState("");
-    const [valorStr, setValorStr] = useState("0");
-    const [itemEstoqueSelecionado, setItemEstoqueSelecionado] = useState<string | null>(null);
-    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
     const [km, setKm] = useState(0);
     const [date, setDate] = useState(getLocalDateString());
     const [vehicleId, setVehicleId] = useState("");
     const [implementId, setImplementId] = useState("");
-    const [parts, setParts] = useState<{ name: string; cost?: number }[]>([]);
-    const [newPartName, setNewPartName] = useState("");
-    const [newPartCost, setNewPartCost] = useState(0);
+    const [lines, setLines] = useState<PecaLinha[]>([emptyPecaLinha()]);
+    const [alreadyDeducted, setAlreadyDeducted] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -38,49 +45,63 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
         if (editingRecord) {
             setType(editingRecord.type);
             setDescription(editingRecord.description || "");
-            setValorStr(String(editingRecord.value_brl || 0));
             setKm(editingRecord.km || 0);
             setDate(editingRecord.date);
             setVehicleId(editingRecord.vehicle_id || "");
             setImplementId(editingRecord.implement_id || "");
-            setParts(editingRecord.parts || []);
+            setLines(linhasFromParts(editingRecord.parts));
         } else {
             setType("");
             setDescription("");
-            setValorStr("0");
             setKm(0);
             setDate(getLocalDateString());
             setVehicleId("");
             setImplementId("");
-            setParts([]);
+            setLines([emptyPecaLinha()]);
         }
-        setItemEstoqueSelecionado(null);
-        setQuantidadeEstoque(0);
+        setAlreadyDeducted(new Map());
         setError(null);
     }, [editingRecord, open]);
 
-    function addPart() {
-        if (!newPartName.trim()) return;
-        setParts([...parts, { name: newPartName, cost: newPartCost || undefined }]);
-        setNewPartName("");
-        setNewPartCost(0);
-    }
+    useEffect(() => {
+        if (!open || !editingRecord?.id) return;
+        let cancelled = false;
+        supabase
+            .from("manutencao_itens")
+            .select("item_id, quantidade")
+            .eq("maintenance_id", editingRecord.id)
+            .then(({ data }) => {
+                if (cancelled) return;
+                const deducted = new Map<string, number>();
+                for (const row of data || []) {
+                    deducted.set(row.item_id, (deducted.get(row.item_id) || 0) + Number(row.quantidade || 0));
+                }
+                setAlreadyDeducted(deducted);
+            });
+        return () => { cancelled = true; };
+    }, [editingRecord?.id, open]);
 
-    function removePart(index: number) {
-        setParts(parts.filter((_, i) => i !== index));
-    }
+    const totalManutencao = partsTotal(lines);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
+
+        const validationError = validatePecaLinhas(lines, itens, alreadyDeducted);
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
+
         setLoading(true);
+        const parts = toMaintenanceParts(lines);
+        const remainingDeducted = new Map(alreadyDeducted);
 
         try {
-            const valueBrl = parseFloat(valorStr) || 0;
             const data = {
                 type,
                 description: description || undefined,
-                value_brl: valueBrl || undefined,
+                value_brl: totalManutencao,
                 km: km || undefined,
                 date,
                 vehicle_id: vehicleId || undefined,
@@ -93,19 +114,25 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                 const updated = await updateRecord(editingRecord.id, data);
                 savedId = updated?.id ?? editingRecord.id;
             } else {
-                const created = await addRecord(data as any);
+                const created = await addRecord(data as Omit<MaintenanceRecord, "id" | "created_at" | "updated_at">);
                 savedId = created?.id;
             }
 
-            // Baixa no estoque se necessário (sem lançamento financeiro extra)
-            if (itemEstoqueSelecionado && quantidadeEstoque > 0 && savedId) {
-                await supabase.rpc('registrar_saida_estoque', {
-                    p_item_id: itemEstoqueSelecionado,
-                    p_quantidade: quantidadeEstoque,
-                    p_vehicle_id: vehicleId || null,
-                    p_maintenance_id: savedId,
-                    p_observacao: 'Baixa automatica via manutencao',
-                });
+            for (const part of parts) {
+                if (part.origin !== "estoque" || !part.item_id || !savedId) continue;
+                const qty = Number(part.quantity) || 0;
+                const already = remainingDeducted.get(part.item_id) || 0;
+                const delta = qty - already;
+                if (delta > 0) {
+                    await registrarSaida({
+                        itemId: part.item_id,
+                        quantidade: delta,
+                        caminhaoId: vehicleId || undefined,
+                        manutencaoId: savedId,
+                        observacao: "Baixa automatica via manutencao",
+                    });
+                }
+                remainingDeducted.set(part.item_id, Math.max(0, already - qty));
             }
 
             onClose();
@@ -120,9 +147,8 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
 
-                {/* Cabeçalho fixo */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 flex-shrink-0">
                     <h3 className="text-lg font-bold text-gray-900">
                         {editingRecord ? "Editar Manutenção" : "Nova Manutenção"}
@@ -132,7 +158,6 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                     </button>
                 </div>
 
-                {/* Corpo com scroll */}
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                     <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -207,16 +232,6 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                         />
                     </div>
 
-                    <SeletorOrigemCusto
-                        valor={valorStr}
-                        onChangeValor={setValorStr}
-                        onSelecionarItemEstoque={(id, qtd) => {
-                            setItemEstoqueSelecionado(id);
-                            setQuantidadeEstoque(qtd);
-                        }}
-                        labelValor="Valor (R$)"
-                    />
-
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
                         <input
@@ -228,53 +243,26 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                         />
                     </div>
 
-                    {/* Parts section */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Peças</label>
-                        {parts.length > 0 && (
-                            <div className="space-y-1 mb-2">
-                                {parts.map((part, i) => (
-                                    <div key={i} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-sm">
-                                        <span>{part.name} {part.cost ? `- R$ ${part.cost.toFixed(2)}` : ""}</span>
-                                        <button type="button" onClick={() => removePart(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newPartName}
-                                onChange={(e) => setNewPartName(e.target.value)}
-                                placeholder="Nome da peça"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <input
-                                type="number"
-                                value={newPartCost}
-                                onChange={(e) => setNewPartCost(parseFloat(e.target.value))}
-                                placeholder="Custo"
-                                step="0.01"
-                                min="0"
-                                className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={addPart}
-                                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
+                    <PecasManutencaoFields
+                        lines={lines}
+                        onChange={setLines}
+                        itens={itens}
+                        alreadyDeducted={alreadyDeducted}
+                    />
 
                     </div>
 
-                    {/* Rodapé fixo */}
-                    <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-white">
+                    <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-white space-y-3">
                         {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">{error}</div>
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>
                         )}
+                        <div className="flex items-center justify-between gap-4 bg-orange-50 border border-orange-100 rounded-xl px-4 py-3">
+                            <div>
+                                <p className="text-xs font-medium text-orange-800 uppercase tracking-wide">Valor total da manutenção</p>
+                                <p className="text-[11px] text-orange-700">Soma automática das peças (estoque + avulsas)</p>
+                            </div>
+                            <p className="text-2xl font-bold text-orange-700">{formatBRL(totalManutencao)}</p>
+                        </div>
                         <div className="flex gap-3">
                             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                                 Cancelar

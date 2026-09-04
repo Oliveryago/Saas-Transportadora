@@ -86,7 +86,11 @@ export function Maintenance() {
                 date: record.date,
                 type: typeLabels[record.type] || record.type,
                 description: record.description || "",
-                parts: record.parts || [],
+                parts: (record.parts || []).map((p) => ({
+                    name: p.name,
+                    quantity: Number(p.quantity) > 0 ? Number(p.quantity) : 1,
+                    cost: Number(p.cost) || 0,
+                })),
                 totalValue: record.value_brl || 0,
                 tenantName: tenant?.name,
                 company: { settings: companySettings, logoDataUrl },
