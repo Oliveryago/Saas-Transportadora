@@ -7,6 +7,7 @@ import {
   inativarItemEstoque,
   reativarItemEstoque,
 } from '../services/estoque/exclusaoItem';
+import { aplicarCustoMedioDosLotes, buscarCustoMedioPorItem } from '../services/estoque/custoMedio';
 import type {
   CamposCadastroItem,
   ItemEstoque,
@@ -37,8 +38,14 @@ export function useEstoque() {
 
     if (err) {
       setError(err.message);
+      setItens([]);
     } else {
-      setItens(data as ItemEstoque[]);
+      try {
+        const custos = await buscarCustoMedioPorItem(tenant.id);
+        setItens(aplicarCustoMedioDosLotes((data as ItemEstoque[]) ?? [], custos));
+      } catch {
+        setItens((data as ItemEstoque[]) ?? []);
+      }
     }
     setLoading(false);
   }, [tenant?.id]);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Package, Wallet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { aplicarCustoMedioDosLotes, buscarCustoMedioPorItem } from '../../services/estoque/custoMedio';
 import type { ItemEstoque } from '../../types/estoque';
 
 type Origem = 'direto' | 'estoque';
@@ -24,12 +25,29 @@ export function SeletorOrigemCusto({
   const [quantidade, setQuantidade] = useState('1');
 
   useEffect(() => {
+    let ativo = true;
     supabase
       .from('itens_estoque')
       .select('*')
       .eq('ativo', true)
       .order('nome')
-      .then(({ data }) => setItens((data as ItemEstoque[]) ?? []));
+      .then(async ({ data }) => {
+        const itens = (data as ItemEstoque[]) ?? [];
+        try {
+          const tenantId = itens[0]?.tenant_id;
+          if (!tenantId) {
+            if (ativo) setItens(itens);
+            return;
+          }
+          const custos = await buscarCustoMedioPorItem(tenantId);
+          if (ativo) setItens(aplicarCustoMedioDosLotes(itens, custos));
+        } catch {
+          if (ativo) setItens(itens);
+        }
+      });
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   const itemSelecionado = itens.find((i) => i.id === itemId);

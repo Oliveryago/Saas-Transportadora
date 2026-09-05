@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabase";
 import { NfeImportError, type NfeConfirmResult, type NfeItemPreview, type NfePreview } from "../../types/nfe";
 import type { CategoriaItem, UnidadeMedida } from "../../types/estoque";
+import { sincronizarCustoMedioItem } from "../estoque/custoMedio";
 import { parseNfeXml, somenteDigitos } from "./parseNfeXml";
 
 export interface EntradaManualLinha {
@@ -105,13 +106,18 @@ export async function confirmarImportacaoNfe(tenantId: string, preview: NfePrevi
   const notaId = notaRow.id as string;
   const lotesIds: string[] = [];
   const pneusIds: string[] = [];
+  const itensParaCusto = new Set<string>();
 
   try {
     for (const item of preview.itens) {
       const itemId = item.item_id as string;
       const quantidade = item.is_pneu ? Math.floor(Number(item.quantidade)) : Number(item.quantidade);
+      const valorUnitario = Number(item.valor_unitario);
       if (!Number.isFinite(quantidade) || quantidade <= 0) {
         throw new NfeImportError(`Quantidade inválida no item "${item.descricao}".`);
+      }
+      if (!Number.isFinite(valorUnitario) || valorUnitario < 0) {
+        throw new NfeImportError(`Valor unitário inválido no item "${item.descricao}".`);
       }
 
       const { data: loteRow, error: loteErr } = await supabase
@@ -122,12 +128,13 @@ export async function confirmarImportacaoNfe(tenantId: string, preview: NfePrevi
           nota_fiscal_id: notaId,
           quantidade_recebida: quantidade,
           quantidade_restante: quantidade,
-          valor_unitario: item.valor_unitario,
+          valor_unitario: valorUnitario,
         })
         .select("id")
         .single();
       if (loteErr) throw new NfeImportError(loteErr.message);
       lotesIds.push(loteRow.id);
+      itensParaCusto.add(itemId);
 
       await upsertCodigoFornecedor(tenantId, itemId, preview.nota.fornecedor_cnpj, item.codigo_fornecedor);
 
@@ -143,7 +150,7 @@ export async function confirmarImportacaoNfe(tenantId: string, preview: NfePrevi
           itemId,
           loteId: loteRow.id,
           quantidade,
-          valorUnitario: item.valor_unitario,
+          valorUnitario,
           medida: item.medida_extraida,
           marcacoes: item.marcacoes_fogo ?? [],
           dataCompra: preview.nota.data_emissao || null,
@@ -157,6 +164,8 @@ export async function confirmarImportacaoNfe(tenantId: string, preview: NfePrevi
     await reverterImportacao(notaId, lotesIds);
     throw err;
   }
+
+  await sincronizarCustos(tenantId, itensParaCusto);
 
   return {
     nota_id: notaId,
@@ -191,13 +200,18 @@ export async function confirmarEntradaManual(
 
   const lotesIds: string[] = [];
   const pneusIds: string[] = [];
+  const itensParaCusto = new Set<string>();
 
   try {
     for (const linha of linhas) {
       if (!linha.item_id) throw new NfeImportError(`Item "${linha.nome}" sem vínculo no catálogo.`);
       const quantidade = linha.is_pneu ? Math.floor(Number(linha.quantidade)) : Number(linha.quantidade);
+      const valorUnitario = Number(linha.valor_unitario);
       if (!Number.isFinite(quantidade) || quantidade <= 0) {
         throw new NfeImportError(`Quantidade inválida no item "${linha.nome}".`);
+      }
+      if (!Number.isFinite(valorUnitario) || valorUnitario < 0) {
+        throw new NfeImportError(`Valor unitário inválido no item "${linha.nome}".`);
       }
 
       const { data: loteRow, error: loteErr } = await supabase
@@ -208,12 +222,13 @@ export async function confirmarEntradaManual(
           nota_fiscal_id: null,
           quantidade_recebida: quantidade,
           quantidade_restante: quantidade,
-          valor_unitario: linha.valor_unitario,
+          valor_unitario: valorUnitario,
         })
         .select("id")
         .single();
       if (loteErr) throw new NfeImportError(loteErr.message);
       lotesIds.push(loteRow.id);
+      itensParaCusto.add(linha.item_id);
 
       if (linha.is_pneu) {
         await supabase
@@ -227,7 +242,7 @@ export async function confirmarEntradaManual(
           itemId: linha.item_id,
           loteId: loteRow.id,
           quantidade,
-          valorUnitario: linha.valor_unitario,
+          valorUnitario,
           medida: linha.medida,
           marcacoes: linha.marcacoes_fogo,
           dataCompra: new Date().toISOString().slice(0, 10),
@@ -244,6 +259,8 @@ export async function confirmarEntradaManual(
     }
     throw err;
   }
+
+  await sincronizarCustos(tenantId, itensParaCusto);
 
   return {
     nota_id: "",
@@ -380,4 +397,14 @@ function unwrapItem(item: unknown): { id: string; nome: string; ativo?: boolean 
   const row = Array.isArray(item) ? item[0] : item;
   if (!row || typeof row !== "object" || !("id" in row)) return null;
   return row as { id: string; nome: string; ativo?: boolean };
+}
+
+async function sincronizarCustos(tenantId: string, itemIds: Set<string>): Promise<void> {
+  for (const itemId of itemIds) {
+    try {
+      await sincronizarCustoMedioItem(tenantId, itemId);
+    } catch {
+      // A listagem recalcula pelos lotes; não desfaz a entrada se só o cache falhar.
+    }
+  }
 }
