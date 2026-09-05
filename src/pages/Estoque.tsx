@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CircleDot, Droplet, Filter, Flame, Package, Pencil, Plus, Zap } from 'lucide-react';
+import { AlertTriangle, CircleDot, Droplet, Filter, Flame, Package, Pencil, Plus, RotateCcw, Trash2, Zap } from 'lucide-react';
 import { useEstoque } from '../hooks/useEstoque';
 import type { CategoriaItem, ItemEstoque } from '../types/estoque';
 import { NovaEntradaModal } from '../components/estoque/NovaEntradaModal';
 import { EditarItemModal } from '../components/estoque/EditarItemModal';
+import { ExcluirItemModal } from '../components/estoque/ExcluirItemModal';
 
 const ICONE_CATEGORIA: Record<CategoriaItem, typeof Droplet> = {
   oleo: Droplet,
@@ -29,11 +30,38 @@ function formatarMoeda(valor: number) {
 }
 
 export function EstoquePage() {
-  const { itens, loading, error, itensAbaixoDoMinimo, valorTotalEmEstoque, recarregar } = useEstoque();
+  const {
+    itens,
+    itensAtivos,
+    loading,
+    error,
+    itensAbaixoDoMinimo,
+    valorTotalEmEstoque,
+    recarregar,
+    reativarItem,
+  } = useEstoque();
   const [modalAberto, setModalAberto] = useState(false);
   const [itemEditando, setItemEditando] = useState<ItemEstoque | null>(null);
+  const [itemExcluindo, setItemExcluindo] = useState<ItemEstoque | null>(null);
+  const [reativandoId, setReativandoId] = useState<string | null>(null);
 
   const categorias = Array.from(new Set(itens.map((item) => item.categoria)));
+  const itensOrdenados = [...itens].sort((a, b) => {
+    if (a.ativo === false && b.ativo !== false) return 1;
+    if (a.ativo !== false && b.ativo === false) return -1;
+    return a.nome.localeCompare(b.nome, 'pt-BR');
+  });
+
+  async function handleReativar(item: ItemEstoque) {
+    setReativandoId(item.id);
+    try {
+      await reativarItem(item.id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Não foi possível reativar o item.');
+    } finally {
+      setReativandoId(null);
+    }
+  }
 
   return (
     <div className="p-6">
@@ -64,7 +92,10 @@ export function EstoquePage() {
         <div>
           <p className="text-sm opacity-85">Valor total em estoque</p>
           <p className="text-3xl font-bold">{formatarMoeda(valorTotalEmEstoque)}</p>
-          <p className="text-xs opacity-75 mt-1">{itens.length} itens cadastrados</p>
+          <p className="text-xs opacity-75 mt-1">
+            {itensAtivos.length} itens ativos
+            {itens.length - itensAtivos.length > 0 ? ` · ${itens.length - itensAtivos.length} inativo(s)` : ''}
+          </p>
         </div>
         <Package size={36} className="opacity-60" />
       </div>
@@ -116,7 +147,7 @@ export function EstoquePage() {
               <th className="px-4 py-2.5 font-normal">Categoria</th>
               <th className="px-4 py-2.5 font-normal">Saldo</th>
               <th className="px-4 py-2.5 font-normal">Custo médio</th>
-              <th className="px-4 py-2.5 font-normal w-10"></th>
+              <th className="px-4 py-2.5 font-normal w-24"></th>
             </tr>
           </thead>
           <tbody>
@@ -130,22 +161,56 @@ export function EstoquePage() {
                 <td className="px-4 py-4 text-red-500" colSpan={5}>{error}</td>
               </tr>
             )}
-            {itens.map((item: ItemEstoque) => (
-              <tr key={item.id} className="border-b border-slate-50 last:border-0 group">
-                <td className="px-4 py-2.5">{item.nome}</td>
+            {itensOrdenados.map((item: ItemEstoque) => (
+              <tr
+                key={item.id}
+                className={`border-b border-slate-50 last:border-0 group ${item.ativo === false ? 'opacity-60' : ''}`}
+              >
+                <td className="px-4 py-2.5">
+                  <span className="flex items-center gap-2">
+                    {item.nome}
+                    {item.ativo === false && (
+                      <span className="text-[10px] uppercase tracking-wide bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                        Inativo
+                      </span>
+                    )}
+                  </span>
+                </td>
                 <td className="px-4 py-2.5 text-slate-500">{item.categoria}</td>
                 <td className={`px-4 py-2.5 ${item.estoque_atual <= item.estoque_minimo ? 'text-red-600 font-medium' : ''}`}>
                   {item.estoque_atual} {item.unidade_medida}
                 </td>
                 <td className="px-4 py-2.5">{formatarMoeda(item.custo_medio)}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <button
-                    onClick={() => setItemEditando(item)}
-                    title="Editar item"
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition"
-                  >
-                    <Pencil size={14} />
-                  </button>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center justify-end gap-1">
+                    {item.ativo === false && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReativar(item)}
+                        disabled={reativandoId === item.id}
+                        title="Reativar item"
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 transition disabled:opacity-50"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setItemEditando(item)}
+                      title="Editar item"
+                      className="p-1.5 text-slate-400 hover:text-blue-600 transition"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setItemExcluindo(item)}
+                      title="Excluir item"
+                      className="p-1.5 text-slate-400 hover:text-red-600 transition"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -155,7 +220,7 @@ export function EstoquePage() {
 
       {modalAberto && (
         <NovaEntradaModal
-          itens={itens}
+          itens={itensAtivos}
           onClose={() => setModalAberto(false)}
           onSaved={() => {
             setModalAberto(false);
@@ -170,6 +235,22 @@ export function EstoquePage() {
           onClose={() => setItemEditando(null)}
           onSaved={() => {
             setItemEditando(null);
+            recarregar();
+          }}
+          onExcluir={() => {
+            const atual = itemEditando;
+            setItemEditando(null);
+            setItemExcluindo(atual);
+          }}
+        />
+      )}
+
+      {itemExcluindo && (
+        <ExcluirItemModal
+          item={itemExcluindo}
+          onClose={() => setItemExcluindo(null)}
+          onDone={() => {
+            setItemExcluindo(null);
             recarregar();
           }}
         />

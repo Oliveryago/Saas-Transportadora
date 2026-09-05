@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { useMaintenanceRecords } from "../../hooks/useMaintenanceRecords";
 import { useVehicles } from "../../hooks/useVehicles";
@@ -28,7 +28,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
     const { addRecord, updateRecord } = useMaintenanceRecords();
     const { vehicles } = useVehicles();
     const { implements: implements_ } = useImplements();
-    const { itens, registrarSaida } = useEstoque();
+    const { itens, itensAtivos, registrarSaida } = useEstoque();
 
     const [type, setType] = useState("");
     const [description, setDescription] = useState("");
@@ -81,13 +81,22 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
         return () => { cancelled = true; };
     }, [editingRecord?.id, open]);
 
+    const pecasItens = useMemo(() => {
+        const selecionados = new Set(lines.filter((line) => line.origin === "estoque" && line.itemId).map((line) => line.itemId));
+        const byId = new Map(itensAtivos.map((item) => [item.id, item]));
+        for (const item of itens) {
+            if (selecionados.has(item.id) && !byId.has(item.id)) byId.set(item.id, item);
+        }
+        return Array.from(byId.values());
+    }, [itens, itensAtivos, lines]);
+
     const totalManutencao = partsTotal(lines);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
 
-        const validationError = validatePecaLinhas(lines, itens, alreadyDeducted);
+        const validationError = validatePecaLinhas(lines, pecasItens, alreadyDeducted);
         if (validationError) {
             setError(validationError);
             return;
@@ -246,7 +255,7 @@ function MaintenanceModal({ open, onClose, editingRecord }: MaintenanceModalProp
                     <PecasManutencaoFields
                         lines={lines}
                         onChange={setLines}
-                        itens={itens}
+                        itens={pecasItens}
                         alreadyDeducted={alreadyDeducted}
                     />
 

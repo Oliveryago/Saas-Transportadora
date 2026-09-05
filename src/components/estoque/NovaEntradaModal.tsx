@@ -191,6 +191,8 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
             estoque_minimo: 1,
             tenant_id: tenant.id,
             rastreavel_individualmente: linha.is_pneu,
+            ncm: linha.ncm || null,
+            medida: linha.medida_extraida || null,
           });
           itemId = novo.id;
         }
@@ -232,6 +234,7 @@ export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
             estoque_minimo: 1,
             tenant_id: tenant.id,
             rastreavel_individualmente: isPneu,
+            medida: linha.medida || null,
           });
           itemId = novo.id;
         }

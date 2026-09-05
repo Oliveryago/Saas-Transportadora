@@ -14,7 +14,22 @@ export interface ItemEstoque {
   ativo: boolean;
   criado_em: string;
   rastreavel_individualmente?: boolean;
+  ncm?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  medida?: string | null;
 }
+
+export type CamposCadastroItem = Pick<
+  ItemEstoque,
+  'nome' | 'categoria' | 'unidade_medida' | 'estoque_minimo'
+> & {
+  rastreavel_individualmente?: boolean;
+  ncm?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  medida?: string | null;
+};
 
 export interface Fornecedor {
   id: string;
