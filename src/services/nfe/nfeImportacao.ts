@@ -62,8 +62,12 @@ export async function confirmarImportacaoNfe(tenantId: string, preview: NfePrevi
   if (!tenantId) throw new NfeImportError("Tenant não identificado.");
   if (!preview?.nota?.chave_acesso) throw new NfeImportError("Dados da nota incompletos.");
 
-  if (await notaJaImportada(tenantId, preview.nota.chave_acesso)) {
+  const notaExistente = await buscarNotaPorChave(tenantId, preview.nota.chave_acesso);
+  if (notaExistente && (await notaTemLotes(notaExistente.id))) {
     throw new NfeImportError("Esta nota fiscal já foi importada (chave de acesso duplicada).");
+  }
+  if (notaExistente) {
+    await supabase.from("notas_fiscais").delete().eq("id", notaExistente.id).eq("tenant_id", tenantId);
   }
 
   const semVinculo = (preview.itens ?? []).filter((item) => !item.item_id);
@@ -308,7 +312,10 @@ async function inserirUnidadesPneu(input: {
   return (pneus ?? []).map((pneu) => pneu.id);
 }
 
-async function notaJaImportada(tenantId: string, chaveAcesso: string): Promise<boolean> {
+async function buscarNotaPorChave(
+  tenantId: string,
+  chaveAcesso: string,
+): Promise<{ id: string } | null> {
   const { data, error } = await supabase
     .from("notas_fiscais")
     .select("id")
@@ -316,7 +323,22 @@ async function notaJaImportada(tenantId: string, chaveAcesso: string): Promise<b
     .eq("chave_acesso", chaveAcesso)
     .maybeSingle();
   if (error) throw new NfeImportError(error.message);
-  return Boolean(data?.id);
+  return data?.id ? { id: data.id } : null;
+}
+
+async function notaTemLotes(notaId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("lotes_estoque")
+    .select("id", { count: "exact", head: true })
+    .eq("nota_fiscal_id", notaId);
+  if (error) throw new NfeImportError(error.message);
+  return (count ?? 0) > 0;
+}
+
+async function notaJaImportada(tenantId: string, chaveAcesso: string): Promise<boolean> {
+  const nota = await buscarNotaPorChave(tenantId, chaveAcesso);
+  if (!nota) return false;
+  return notaTemLotes(nota.id);
 }
 
 async function upsertCodigoFornecedor(

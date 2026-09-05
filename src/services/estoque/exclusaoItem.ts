@@ -147,7 +147,15 @@ export async function excluirItemEstoque(
     );
   }
 
-  const loteIds = avaliacao.lotes.map((lote) => lote.id);
+  const { data: lotesAntes, error: lotesAntesError } = await supabase
+    .from("lotes_estoque")
+    .select("id, nota_fiscal_id")
+    .eq("tenant_id", tenantId)
+    .eq("item_id", item.id);
+  throwIfError(lotesAntesError);
+
+  const loteIds = [...new Set((lotesAntes ?? []).map((lote) => lote.id))];
+  const notaIds = [...new Set((lotesAntes ?? []).map((lote) => lote.nota_fiscal_id).filter(Boolean))] as string[];
 
   if (loteIds.length > 0) {
     const { error: pneusLoteError } = await supabase
@@ -185,6 +193,26 @@ export async function excluirItemEstoque(
     .eq("tenant_id", tenantId);
 
   throwIfError(error);
+
+  await removerNotasSemLotes(tenantId, notaIds);
+}
+
+async function removerNotasSemLotes(tenantId: string, notaIds: string[]): Promise<void> {
+  for (const notaId of notaIds) {
+    const { count, error: countError } = await supabase
+      .from("lotes_estoque")
+      .select("id", { count: "exact", head: true })
+      .eq("nota_fiscal_id", notaId);
+    throwIfError(countError);
+    if ((count ?? 0) > 0) continue;
+
+    const { error } = await supabase
+      .from("notas_fiscais")
+      .delete()
+      .eq("id", notaId)
+      .eq("tenant_id", tenantId);
+    throwIfError(error);
+  }
 }
 
 export async function inativarItemEstoque(tenantId: string, itemId: string): Promise<void> {
