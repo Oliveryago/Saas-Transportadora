@@ -1,15 +1,21 @@
 export type PneuStatus =
   | "aguardando_marcacao"
+  | "pendente_marcacao"
   | "em_estoque"
   | "montado"
   | "recapado"
-  | "descartado";
+  | "descartado"
+  | "disponivel"
+  | "em_uso"
+  | "baixado";
 
 export interface PneuIndividual {
   id: string;
   tenant_id: string;
   item_id: string | null;
-  codigo_marcacao: string;
+  lote_id?: string | null;
+  manutencao_id?: string | null;
+  codigo_marcacao: string | null;
   marca: string | null;
   modelo: string | null;
   medida: string | null;
@@ -46,10 +52,14 @@ export interface PneuRecapagem {
 
 export const PNEU_STATUS_LABEL: Record<PneuStatus, string> = {
   aguardando_marcacao: "Aguardando marcação",
+  pendente_marcacao: "Pendente de marcação",
   em_estoque: "Em estoque",
   montado: "Montado",
   recapado: "Recapado",
   descartado: "Descartado",
+  disponivel: "Disponível",
+  em_uso: "Em uso",
+  baixado: "Baixado",
 };
 
 export function nomeParecePneu(nome?: string | null): boolean {

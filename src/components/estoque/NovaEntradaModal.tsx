@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, QrCode, X } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useEstoque } from '../../hooks/useEstoque';
-import { usePneusIndividuais } from '../../hooks/usePneusIndividuais';
-import type { CategoriaItem, ItemEstoque, UnidadeMedida } from '../../types/estoque';
-import { extractNfeKey, itemEhRastreavel, nomeParecePneu } from '../../types/pneu';
-import { QRCodeScanner } from '../shared/QRCodeScanner';
-import { getLocalDateString } from '../../lib/utils/date';
+import { useRef, useState } from "react";
+import { FileUp, Loader2, Plus, X } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useEstoque } from "../../hooks/useEstoque";
+import { useNfeImportacao } from "../../hooks/useNfeImportacao";
+import { confirmarEntradaManual } from "../../services/nfe/nfeImportacao";
+import type { CategoriaItem, ItemEstoque, UnidadeMedida } from "../../types/estoque";
+import type { NfeItemPreview, NfePreview } from "../../types/nfe";
+import { itemEhRastreavel, nomeParecePneu } from "../../types/pneu";
+import { CamposMarcacaoFogo, marcacoesCompletas } from "./CamposMarcacaoFogo";
+import { SeletorItemEstoque } from "./SeletorItemEstoque";
 
 interface Props {
   itens: ItemEstoque[];
@@ -14,447 +16,632 @@ interface Props {
   onSaved: () => void;
 }
 
+type Modo = "escolha" | "xml" | "manual";
+
+type LinhaXml = NfeItemPreview & {
+  busca: string;
+  criandoNovo: boolean;
+  dropdownAberto: boolean;
+  marcacoes: string[];
+};
+
+type LinhaManual = {
+  id: string;
+  busca: string;
+  item: ItemEstoque | null;
+  criandoNovo: boolean;
+  dropdownAberto: boolean;
+  categoria: CategoriaItem;
+  unidade: UnidadeMedida;
+  quantidade: string;
+  valorUnitario: string;
+  medida: string;
+  marcacoes: string[];
+};
+
 const CATEGORIAS: { value: CategoriaItem; label: string }[] = [
-  { value: 'oleo', label: 'Óleo' },
-  { value: 'pneu', label: 'Pneu' },
-  { value: 'filtro', label: 'Filtro' },
-  { value: 'eletrica', label: 'Elétrica' },
-  { value: 'peca_motor', label: 'Peça de Motor' },
-  { value: 'outro', label: 'Outro' },
+  { value: "oleo", label: "Óleo" },
+  { value: "pneu", label: "Pneu" },
+  { value: "filtro", label: "Filtro" },
+  { value: "eletrica", label: "Elétrica" },
+  { value: "peca_motor", label: "Peça de Motor" },
+  { value: "outro", label: "Outro" },
 ];
 
 const UNIDADES: { value: UnidadeMedida; label: string }[] = [
-  { value: 'unidade', label: 'Unidade' },
-  { value: 'litro', label: 'Litro' },
-  { value: 'kit', label: 'Kit' },
+  { value: "unidade", label: "Unidade" },
+  { value: "litro", label: "Litro" },
+  { value: "kit", label: "Kit" },
 ];
+
+function novaLinhaManual(): LinhaManual {
+  return {
+    id: crypto.randomUUID(),
+    busca: "",
+    item: null,
+    criandoNovo: false,
+    dropdownAberto: false,
+    categoria: "outro",
+    unidade: "unidade",
+    quantidade: "",
+    valorUnitario: "",
+    medida: "",
+    marcacoes: [],
+  };
+}
+
+function ajustarMarcacoes(atual: string[], quantidade: number, isPneu: boolean): string[] {
+  if (!isPneu) return [];
+  const qtd = Math.max(0, Math.floor(Number(quantidade) || 0));
+  return Array.from({ length: qtd }, (_, i) => atual[i] ?? "");
+}
 
 export function NovaEntradaModal({ itens, onClose, onSaved }: Props) {
   const { tenant } = useAuth();
-  const { registrarEntrada, criarItem } = useEstoque();
-  const { criarLoteEntrada } = usePneusIndividuais();
+  const { criarItem } = useEstoque();
+  const { preVisualizarArquivo, confirmar, loading: lendoXml, error: erroHook, limparErro } = useNfeImportacao();
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // Combobox state
-  const [busca, setBusca] = useState('');
-  const [dropdownAberto, setDropdownAberto] = useState(false);
-  const [itemSelecionado, setItemSelecionado] = useState<ItemEstoque | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Campos da entrada
-  const [quantidade, setQuantidade] = useState('');
-  const [valorUnitario, setValorUnitario] = useState('');
-
-  // Campos para novo item
-  const [criandoNovo, setCriandoNovo] = useState(false);
-  const [novaCategoria, setNovaCategoria] = useState<CategoriaItem>('outro');
-  const [novaUnidade, setNovaUnidade] = useState<UnidadeMedida>('unidade');
-  const [estoqueMinimo, setEstoqueMinimo] = useState('1');
-  const [rastreavelNovo, setRastreavelNovo] = useState(false);
-  const [marca, setMarca] = useState('');
-  const [modelo, setModelo] = useState('');
-  const [medida, setMedida] = useState('');
-  const [notaFiscal, setNotaFiscal] = useState('');
-  const [fornecedor, setFornecedor] = useState('');
-  const [dataCompra, setDataCompra] = useState(getLocalDateString());
-  const [lerQr, setLerQr] = useState(false);
-
+  const [modo, setModo] = useState<Modo>("escolha");
+  const [preview, setPreview] = useState<NfePreview | null>(null);
+  const [linhasXml, setLinhasXml] = useState<LinhaXml[]>([]);
+  const [linhasManual, setLinhasManual] = useState<LinhaManual[]>([novaLinhaManual()]);
+  const [arquivoNome, setArquivoNome] = useState<string>("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target as Node)
-      ) {
-        setDropdownAberto(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const mensagemErro = erro || erroHook;
 
-  const itensFiltrados = itens.filter((item) =>
-    item.nome.toLowerCase().includes(busca.toLowerCase())
-  );
-
-  const nomeLimpo = busca.trim();
-  const parecePneu = nomeParecePneu(nomeLimpo);
-  const itemRastreavel = itemSelecionado
-    ? itemEhRastreavel(itemSelecionado)
-    : rastreavelNovo || novaCategoria === 'pneu' || parecePneu;
-
-  function selecionarItem(item: ItemEstoque) {
-    setItemSelecionado(item);
-    setBusca(item.nome);
-    setCriandoNovo(false);
-    setDropdownAberto(false);
-  }
-
-  function iniciarCriacaoNovo() {
-    setItemSelecionado(null);
-    setCriandoNovo(true);
-    setDropdownAberto(false);
-    if (nomeParecePneu(nomeLimpo)) {
-      setNovaCategoria('pneu');
-      setRastreavelNovo(true);
-    }
-  }
-
-  function limparSelecao() {
-    setItemSelecionado(null);
-    setBusca('');
-    setCriandoNovo(false);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  async function salvar() {
+  function voltarEscolha() {
+    setModo("escolha");
+    setPreview(null);
+    setLinhasXml([]);
+    setArquivoNome("");
     setErro(null);
+    limparErro();
+    setLinhasManual([novaLinhaManual()]);
+  }
 
-    if (!nomeLimpo) {
-      setErro('Digite o nome do item.');
+  async function aoEscolherXml(file: File | undefined) {
+    if (!file) return;
+    setErro(null);
+    setArquivoNome(file.name);
+    try {
+      const result = await preVisualizarArquivo(file);
+      setPreview(result);
+      setLinhasXml(
+        result.itens.map((item) => ({
+          ...item,
+          busca: item.item_nome || item.descricao,
+          criandoNovo: false,
+          dropdownAberto: false,
+          marcacoes: ajustarMarcacoes([], item.quantidade, item.is_pneu),
+        }))
+      );
+      setModo("xml");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "XML inválido ou que não é uma NF-e.");
+      setModo("escolha");
+    }
+  }
+
+  function atualizarXml(index: number, patch: Partial<LinhaXml>) {
+    setLinhasXml((prev) =>
+      prev.map((linha, i) => {
+        if (i !== index) return linha;
+        const next = { ...linha, ...patch };
+        const qtd = patch.quantidade ?? next.quantidade;
+        const isPneu = patch.is_pneu ?? next.is_pneu;
+        if (patch.quantidade != null || patch.is_pneu != null) {
+          next.marcacoes = ajustarMarcacoes(next.marcacoes, qtd, isPneu);
+        }
+        return next;
+      })
+    );
+  }
+
+  function atualizarManual(id: string, patch: Partial<LinhaManual>) {
+    setLinhasManual((prev) =>
+      prev.map((linha) => {
+        if (linha.id !== id) return linha;
+        const next = { ...linha, ...patch };
+        const isPneu = linhaEhPneu(next);
+        if (patch.quantidade != null || patch.item !== undefined || patch.categoria != null || patch.busca != null) {
+          next.marcacoes = ajustarMarcacoes(next.marcacoes, Number(next.quantidade), isPneu);
+        }
+        return next;
+      })
+    );
+  }
+
+  function linhaEhPneu(linha: LinhaManual): boolean {
+    if (linha.item) return itemEhRastreavel(linha.item);
+    return linha.categoria === "pneu" || nomeParecePneu(linha.busca);
+  }
+
+  const xmlPodeConfirmar =
+    Boolean(preview) &&
+    !preview?.ja_importada &&
+    linhasXml.length > 0 &&
+    linhasXml.every((linha) => Boolean(linha.item_id || linha.criandoNovo)) &&
+    linhasXml.every((linha) => marcacoesCompletas(linha.is_pneu, linha.quantidade, linha.marcacoes));
+
+  const manualPodeSalvar =
+    linhasManual.length > 0 &&
+    linhasManual.every((linha) => (linha.item || linha.criandoNovo) && linha.quantidade && linha.valorUnitario) &&
+    linhasManual.every((linha) => marcacoesCompletas(linhaEhPneu(linha), Number(linha.quantidade), linha.marcacoes));
+
+  async function confirmarXml() {
+    if (!tenant?.id || !preview) return;
+    setErro(null);
+    if (preview.ja_importada) {
+      setErro("Esta nota fiscal já foi importada (chave de acesso duplicada).");
       return;
     }
-    if (!quantidade || !valorUnitario) {
-      setErro('Preencha quantidade e valor unitário.');
-      return;
-    }
-
     setSalvando(true);
     try {
-      let idItem = itemSelecionado?.id;
-
-      const gerarIndividuais = itemSelecionado
-        ? itemEhRastreavel(itemSelecionado)
-        : rastreavelNovo || novaCategoria === 'pneu' || nomeParecePneu(nomeLimpo);
-      const categoriaFinal: CategoriaItem =
-        novaCategoria === 'pneu' || nomeParecePneu(nomeLimpo) ? 'pneu' : novaCategoria;
-
-      if (!idItem) {
-        // Criar novo item
-        if (!tenant?.id) throw new Error('Tenant não identificado.');
-        const novoItem = await criarItem({
-          nome: nomeLimpo,
-          categoria: categoriaFinal,
-          unidade_medida: novaUnidade,
-          estoque_minimo: Number(estoqueMinimo) || 1,
-          tenant_id: tenant.id,
-          rastreavel_individualmente: gerarIndividuais,
-        });
-        idItem = novoItem.id;
-      }
-
-      await registrarEntrada({
-        itemId: idItem,
-        quantidade: Number(quantidade),
-        valorUnitario: Number(valorUnitario),
-      });
-
-      if (gerarIndividuais) {
-        const qtd = Math.floor(Number(quantidade));
-        if (qtd < 1) throw new Error('Para pneus rastreáveis, informe uma quantidade inteira.');
-        try {
-          await criarLoteEntrada({
-            itemId: idItem,
-            quantidade: qtd,
-            valorUnitario: Number(valorUnitario),
-            marca,
-            modelo,
-            medida,
-            notaFiscal,
-            fornecedor,
-            dataCompra,
+      const itensConfirmados: NfeItemPreview[] = [];
+      for (const linha of linhasXml) {
+        let itemId = linha.item_id;
+        if (!itemId) {
+          const novo = await criarItem({
+            nome: linha.descricao.trim() || linha.busca.trim(),
+            categoria: linha.is_pneu ? "pneu" : "outro",
+            unidade_medida: "unidade",
+            estoque_minimo: 1,
+            tenant_id: tenant.id,
+            rastreavel_individualmente: linha.is_pneu,
           });
-        } catch (pneuErr) {
-          console.error(pneuErr);
-          alert('A entrada de estoque foi salva, mas os códigos de marcação de fogo não foram gerados. Rode o SQL de pneus individuais no Supabase e tente de novo só a marcação, se necessário.');
+          itemId = novo.id;
         }
+        itensConfirmados.push({
+          ...linha,
+          item_id: itemId,
+          item_nome: linha.item_nome || linha.descricao,
+          marcacoes_fogo: linha.marcacoes,
+          medida_extraida: linha.medida_extraida,
+        });
       }
-
+      await confirmar({
+        ...preview,
+        itens: itensConfirmados,
+        nao_encontrados: [],
+      });
       onSaved();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar entrada.');
+      setErro(e instanceof Error ? e.message : "Falha ao salvar a entrada da nota.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function salvarManual() {
+    if (!tenant?.id) return;
+    setErro(null);
+    setSalvando(true);
+    try {
+      const linhas = [];
+      for (const linha of linhasManual) {
+        let itemId = linha.item?.id ?? null;
+        const isPneu = linhaEhPneu(linha);
+        if (!itemId) {
+          const novo = await criarItem({
+            nome: linha.busca.trim(),
+            categoria: isPneu ? "pneu" : linha.categoria,
+            unidade_medida: linha.unidade,
+            estoque_minimo: 1,
+            tenant_id: tenant.id,
+            rastreavel_individualmente: isPneu,
+          });
+          itemId = novo.id;
+        }
+        linhas.push({
+          item_id: itemId,
+          nome: linha.item?.nome || linha.busca.trim(),
+          categoria: isPneu ? "pneu" : linha.categoria,
+          unidade_medida: linha.unidade,
+          quantidade: Number(linha.quantidade),
+          valor_unitario: Number(linha.valorUnitario),
+          is_pneu: isPneu,
+          medida: linha.medida || null,
+          marcacoes_fogo: linha.marcacoes,
+        });
+      }
+      await confirmarEntradaManual(tenant.id, linhas);
+      onSaved();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao salvar a entrada manual.");
     } finally {
       setSalvando(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-3xl p-5 shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-semibold text-slate-900">Nova entrada de estoque</h2>
-          <button onClick={onClose} aria-label="Fechar">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Nova entrada de estoque</h2>
+            {modo === "xml" && preview && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                NF {preview.nota.numero_nota || "—"} · {preview.nota.fornecedor_nome || "Fornecedor"} · {arquivoNome}
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar">
             <X size={18} className="text-slate-400" />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Campo de item — combobox */}
-          <div>
-            <label className="text-xs font-medium text-slate-500">Item</label>
-            <div className="relative mt-1">
-              <div className="flex items-center border border-slate-200 rounded-md px-3 py-2 gap-2 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-200 transition">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Digite ou selecione uma peça..."
-                  value={busca}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setBusca(next);
-                    setItemSelecionado(null);
-                    setCriandoNovo(false);
-                    setDropdownAberto(true);
-                    if (nomeParecePneu(next)) {
-                      setNovaCategoria('pneu');
-                      setRastreavelNovo(true);
-                    }
-                  }}
-                  onFocus={() => setDropdownAberto(true)}
-                  className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
-                />
-                {(itemSelecionado || criandoNovo || busca) && (
-                  <button onClick={limparSelecao} className="text-slate-400 hover:text-slate-600">
-                    <X size={14} />
-                  </button>
-                )}
-                <ChevronDown
-                  size={15}
-                  className={`text-slate-400 transition-transform ${dropdownAberto ? 'rotate-180' : ''}`}
-                />
-              </div>
-
-              {/* Badge de status */}
-              {itemSelecionado && (
-                <p className="flex items-center gap-1 text-[11px] text-emerald-600 mt-1">
-                  <Check size={11} /> Item já cadastrado — entrada será registrada
-                </p>
+        {modo === "escolha" && (
+          <div className="space-y-4">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xml,text/xml,application/xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                void aoEscolherXml(file);
+              }}
+            />
+            <button
+              type="button"
+              disabled={lendoXml}
+              onClick={() => fileRef.current?.click()}
+              className="w-full border-2 border-dashed border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-xl px-4 py-8 text-center transition disabled:opacity-60"
+            >
+              {lendoXml ? (
+                <Loader2 size={28} className="mx-auto text-blue-600 animate-spin" />
+              ) : (
+                <FileUp size={28} className="mx-auto text-blue-600" />
               )}
-              {criandoNovo && !itemSelecionado && (
-                <p className="flex items-center gap-1 text-[11px] text-blue-600 mt-1">
-                  <Plus size={11} /> Novo item — será cadastrado automaticamente
-                </p>
-              )}
-
-              {/* Dropdown */}
-              {dropdownAberto && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-10 top-full mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                >
-                  {itensFiltrados.length > 0 && (
-                    <>
-                      <p className="px-3 pt-2 pb-1 text-[10px] text-slate-400 uppercase tracking-wide">
-                        Itens cadastrados
-                      </p>
-                      {itensFiltrados.map((item) => (
-                        <button
-                          key={item.id}
-                          onMouseDown={() => selecionarItem(item)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center justify-between group"
-                        >
-                          <span className="text-slate-800">{item.nome}</span>
-                          <span className="text-[11px] text-slate-400 group-hover:text-blue-500">
-                            {item.categoria}
-                          </span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-
-                  {nomeLimpo && (
-                    <button
-                      onMouseDown={iniciarCriacaoNovo}
-                      className="w-full text-left px-3 py-2.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t border-slate-100"
-                    >
-                      <Plus size={14} />
-                      Criar "<span className="font-medium">{nomeLimpo}</span>"
-                    </button>
-                  )}
-
-                  {!nomeLimpo && itensFiltrados.length === 0 && (
-                    <p className="px-3 py-3 text-sm text-slate-400 text-center">
-                      Digite para buscar ou criar um item
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+              <p className="mt-2 text-sm font-medium text-blue-800">Importar XML da nota</p>
+              <p className="text-xs text-blue-600 mt-1">Selecione o arquivo XML da NF-e</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setErro(null);
+                limparErro();
+                setModo("manual");
+              }}
+              className="block w-full text-center text-sm text-slate-500 hover:text-slate-800 underline-offset-2 hover:underline"
+            >
+              Prefiro cadastrar manualmente
+            </button>
           </div>
+        )}
 
-          {/* Campos extras ao criar novo item */}
-          {criandoNovo && !itemSelecionado && (
-            <div className="bg-blue-50 rounded-lg p-3 space-y-3 border border-blue-100">
-              <p className="text-xs font-medium text-blue-700">Dados do novo item</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-500">Categoria</label>
-                  <select
-                    value={novaCategoria}
-                    onChange={(e) => {
-                      const next = e.target.value as CategoriaItem;
-                      setNovaCategoria(next);
-                      setRastreavelNovo(next === 'pneu');
-                    }}
-                    className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-1 bg-white"
-                  >
-                    {CATEGORIAS.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Unidade</label>
-                  <select
-                    value={novaUnidade}
-                    onChange={(e) => setNovaUnidade(e.target.value as UnidadeMedida)}
-                    className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-1 bg-white"
-                  >
-                    {UNIDADES.map((u) => (
-                      <option key={u.value} value={u.value}>
-                        {u.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+        {modo === "xml" && preview && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-slate-50 rounded-lg p-3">
+              <div>
+                <p className="text-slate-400">Chave</p>
+                <p className="font-mono text-slate-700 break-all">{preview.nota.chave_acesso}</p>
               </div>
               <div>
-                <label className="text-xs text-slate-500">Estoque mínimo</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={estoqueMinimo}
-                  onChange={(e) => setEstoqueMinimo(e.target.value)}
-                  className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-1"
-                />
+                <p className="text-slate-400">Emissão</p>
+                <p className="text-slate-700">{preview.nota.data_emissao || "—"}</p>
               </div>
-              <label className="flex items-start gap-2 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={rastreavelNovo}
-                  onChange={(e) => setRastreavelNovo(e.target.checked)}
-                />
-                <span>Rastreável individualmente (gera um código de marcação de fogo por unidade)</span>
-              </label>
-            </div>
-          )}
-
-          {/* Quantidade */}
-          <div>
-            <label className="text-xs font-medium text-slate-500">Quantidade</label>
-            <input
-              type="number"
-              min="0"
-              value={quantidade}
-              onChange={(e) => setQuantidade(e.target.value)}
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
-            />
-          </div>
-
-          {/* Valor unitário */}
-          <div>
-            <label className="text-xs font-medium text-slate-500">Valor unitário pago (R$)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={valorUnitario}
-              onChange={(e) => setValorUnitario(e.target.value)}
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
-            />
-          </div>
-
-          {itemRastreavel && (
-            <div className="space-y-3 border border-orange-100 bg-orange-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-orange-800">Dados da nota / pneu (marcação de fogo)</p>
               <div>
-                <label className="text-xs text-slate-500">Nota fiscal / chave de acesso</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="text"
-                    value={notaFiscal}
-                    onChange={(e) => setNotaFiscal(e.target.value)}
-                    placeholder="Chave da NF-e ou número da nota"
-                    className="flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setLerQr(true)}
-                    className="px-3 py-2 border border-slate-200 rounded-md text-slate-600 hover:bg-white"
-                    title="Ler QR da nota"
-                  >
-                    <QrCode size={16} />
-                  </button>
-                </div>
+                <p className="text-slate-400">CNPJ</p>
+                <p className="text-slate-700">{preview.nota.fornecedor_cnpj || "—"}</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-500">Fornecedor</label>
-                  <input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 bg-white" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Data da compra</label>
-                  <input type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm mt-1 bg-white" />
-                </div>
+              <div>
+                <p className="text-slate-400">Total</p>
+                <p className="text-slate-700">
+                  {preview.nota.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs text-slate-500">Marca</label>
-                  <input value={marca} onChange={(e) => setMarca(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Modelo</label>
-                  <input value={modelo} onChange={(e) => setModelo(e.target.value)} className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Medida</label>
-                  <input value={medida} onChange={(e) => setMedida(e.target.value)} placeholder="275/80R22.5" className="w-full border border-slate-200 rounded-md px-2 py-2 text-sm mt-1 bg-white" />
-                </div>
-              </div>
-              <p className="text-[11px] text-orange-700">
-                Cada unidade gera um código (PNEU-ANO-00001) com status “aguardando marcação”.
+            </div>
+
+            {preview.ja_importada && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+                Esta nota fiscal já foi importada (chave de acesso duplicada).
               </p>
+            )}
+
+            <div className="space-y-3">
+              {linhasXml.map((linha, index) => (
+                <div key={`${linha.n_item}-${index}`} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                    <div className="md:col-span-5">
+                      <label className="text-[11px] text-slate-500">Item</label>
+                      <input
+                        value={linha.descricao}
+                        onChange={(e) => atualizarXml(index, { descricao: e.target.value })}
+                        className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-0.5"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-[11px] text-slate-500">Quantidade</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={linha.quantidade}
+                        onChange={(e) => atualizarXml(index, { quantidade: Number(e.target.value) })}
+                        className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-0.5"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="text-[11px] text-slate-500">Valor unitário</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={linha.valor_unitario}
+                        onChange={(e) => atualizarXml(index, { valor_unitario: Number(e.target.value) })}
+                        className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-0.5"
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex items-end pb-1">
+                      <label className="flex items-center gap-1.5 text-xs text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={linha.is_pneu}
+                          onChange={(e) => atualizarXml(index, { is_pneu: e.target.checked })}
+                        />
+                        Pneu
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500">Catálogo interno</label>
+                    {linha.item_id && !linha.criandoNovo ? (
+                      <p className="text-sm text-emerald-700 mt-0.5">
+                        Vinculado: {linha.item_nome}
+                        <button
+                          type="button"
+                          className="ml-2 text-xs text-blue-600 hover:underline"
+                          onClick={() => atualizarXml(index, { item_id: null, item_nome: null, busca: linha.descricao })}
+                        >
+                          alterar
+                        </button>
+                      </p>
+                    ) : (
+                      <div className="mt-0.5">
+                        <SeletorItemEstoque
+                          itens={itens}
+                          busca={linha.busca}
+                          itemSelecionado={itens.find((i) => i.id === linha.item_id) ?? null}
+                          criandoNovo={linha.criandoNovo}
+                          aberto={linha.dropdownAberto}
+                          onAberto={(aberto) => atualizarXml(index, { dropdownAberto: aberto })}
+                          onBusca={(valor) => atualizarXml(index, { busca: valor, item_id: null, item_nome: null, criandoNovo: false })}
+                          onSelecionar={(item) =>
+                            atualizarXml(index, {
+                              item_id: item.id,
+                              item_nome: item.nome,
+                              busca: item.nome,
+                              criandoNovo: false,
+                              dropdownAberto: false,
+                            })
+                          }
+                          onCriarNovo={() =>
+                            atualizarXml(index, {
+                              criandoNovo: true,
+                              item_id: null,
+                              item_nome: null,
+                              dropdownAberto: false,
+                              descricao: linha.busca.trim() || linha.descricao,
+                            })
+                          }
+                          onLimpar={() =>
+                            atualizarXml(index, { busca: "", item_id: null, item_nome: null, criandoNovo: false })
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {linha.is_pneu && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-md p-2">
+                      <label className="text-[11px] text-orange-800">Medida</label>
+                      <input
+                        value={linha.medida_extraida || ""}
+                        onChange={(e) => atualizarXml(index, { medida_extraida: e.target.value || null })}
+                        placeholder="275/80R22.5"
+                        className="w-full max-w-xs border border-orange-200 rounded-md px-2 py-1.5 text-sm bg-white mt-0.5"
+                      />
+                      <CamposMarcacaoFogo
+                        quantidade={linha.quantidade}
+                        marcacoes={linha.marcacoes}
+                        onChange={(i, valor) => {
+                          const next = [...linha.marcacoes];
+                          next[i] = valor;
+                          atualizarXml(index, { marcacoes: next });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {erro && <p className="text-xs text-red-500">{erro}</p>}
-        </div>
+        {modo === "manual" && (
+          <div className="space-y-3">
+            {linhasManual.map((linha, index) => {
+              const isPneu = linhaEhPneu(linha);
+              return (
+                <div key={linha.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-medium text-slate-500">Item {index + 1}</p>
+                    {linhasManual.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-xs text-slate-400 hover:text-red-600"
+                        onClick={() => setLinhasManual((prev) => prev.filter((l) => l.id !== linha.id))}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                  <SeletorItemEstoque
+                    itens={itens}
+                    busca={linha.busca}
+                    itemSelecionado={linha.item}
+                    criandoNovo={linha.criandoNovo}
+                    aberto={linha.dropdownAberto}
+                    onAberto={(aberto) => atualizarManual(linha.id, { dropdownAberto: aberto })}
+                    onBusca={(valor) =>
+                      atualizarManual(linha.id, {
+                        busca: valor,
+                        item: null,
+                        criandoNovo: false,
+                        categoria: nomeParecePneu(valor) ? "pneu" : linha.categoria,
+                      })
+                    }
+                    onSelecionar={(item) =>
+                      atualizarManual(linha.id, {
+                        item,
+                        busca: item.nome,
+                        criandoNovo: false,
+                        dropdownAberto: false,
+                        categoria: item.categoria,
+                      })
+                    }
+                    onCriarNovo={() =>
+                      atualizarManual(linha.id, {
+                        criandoNovo: true,
+                        item: null,
+                        dropdownAberto: false,
+                        categoria: nomeParecePneu(linha.busca) ? "pneu" : linha.categoria,
+                      })
+                    }
+                    onLimpar={() => atualizarManual(linha.id, { busca: "", item: null, criandoNovo: false })}
+                  />
+                  {linha.criandoNovo && !linha.item && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={linha.categoria}
+                        onChange={(e) => atualizarManual(linha.id, { categoria: e.target.value as CategoriaItem })}
+                        className="border border-slate-200 rounded-md px-2 py-1.5 text-sm bg-white"
+                      >
+                        {CATEGORIAS.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={linha.unidade}
+                        onChange={(e) => atualizarManual(linha.id, { unidade: e.target.value as UnidadeMedida })}
+                        className="border border-slate-200 rounded-md px-2 py-1.5 text-sm bg-white"
+                      >
+                        {UNIDADES.map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-slate-500">Quantidade</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={linha.quantidade}
+                        onChange={(e) => atualizarManual(linha.id, { quantidade: e.target.value })}
+                        className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-0.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-500">Valor unitário pago (R$)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={linha.valorUnitario}
+                        onChange={(e) => atualizarManual(linha.id, { valorUnitario: e.target.value })}
+                        className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-sm mt-0.5"
+                      />
+                    </div>
+                  </div>
+                  {isPneu && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-md p-2">
+                      <label className="text-[11px] text-orange-800">Medida</label>
+                      <input
+                        value={linha.medida}
+                        onChange={(e) => atualizarManual(linha.id, { medida: e.target.value })}
+                        placeholder="275/80R22.5"
+                        className="w-full max-w-xs border border-orange-200 rounded-md px-2 py-1.5 text-sm bg-white mt-0.5"
+                      />
+                      <CamposMarcacaoFogo
+                        quantidade={Number(linha.quantidade)}
+                        marcacoes={linha.marcacoes}
+                        onChange={(i, valor) => {
+                          const next = [...linha.marcacoes];
+                          next[i] = valor;
+                          atualizarManual(linha.id, { marcacoes: next });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setLinhasManual((prev) => [...prev, novaLinhaManual()])}
+              className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+            >
+              <Plus size={14} /> Adicionar outro item
+            </button>
+          </div>
+        )}
 
-        <div className="flex justify-end gap-2 mt-5">
-          <button
-            onClick={onClose}
-            className="text-sm px-4 py-2 rounded-md border border-slate-200 hover:bg-slate-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={salvar}
-            disabled={salvando || !nomeLimpo}
-            className="text-sm px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition"
-          >
-            {salvando ? 'Salvando...' : 'Salvar entrada'}
-          </button>
+        {mensagemErro && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2 mt-4">
+            {mensagemErro}
+          </p>
+        )}
+
+        <div className="flex justify-between items-center gap-2 mt-5">
+          <div>
+            {modo !== "escolha" && (
+              <button type="button" onClick={voltarEscolha} className="text-sm text-slate-500 hover:text-slate-800">
+                Voltar
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm px-4 py-2 rounded-md border border-slate-200 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            {modo === "xml" && (
+              <button
+                type="button"
+                onClick={confirmarXml}
+                disabled={salvando || lendoXml || !xmlPodeConfirmar}
+                className="text-sm px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700"
+              >
+                {salvando ? "Salvando..." : "Confirmar entrada"}
+              </button>
+            )}
+            {modo === "manual" && (
+              <button
+                type="button"
+                onClick={salvarManual}
+                disabled={salvando || !manualPodeSalvar}
+                className="text-sm px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700"
+              >
+                {salvando ? "Salvando..." : "Salvar entrada"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      {lerQr && (
-        <QRCodeScanner
-          title="QR da nota fiscal"
-          placeholder="Cole a chave de 44 dígitos"
-          onScan={(value) => {
-            setNotaFiscal(extractNfeKey(value));
-            setLerQr(false);
-          }}
-          onClose={() => setLerQr(false)}
-        />
-      )}
     </div>
   );
 }
