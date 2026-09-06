@@ -5,13 +5,11 @@ import { supabase } from "../lib/supabase";
 import { Truck } from "lucide-react";
 
 export function Login() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -20,13 +18,8 @@ export function Login() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password, name);
-      }
+      await signIn(email, password);
 
-      // Check role to decide where to redirect
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: userData } = await supabase
@@ -41,7 +34,7 @@ export function Login() {
       }
       navigate("/");
     } catch (err: any) {
-      console.error("Login/Register error:", err);
+      console.error("Login error:", err);
       let message = err.message || "Erro desconhecido";
       if (message.includes("rate duration")) {
         message = "Limite de tentativas excedido, aguarde um momento.";
@@ -64,25 +57,7 @@ export function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-900 mb-6">
-              {isLogin ? "Entrar" : "Registrar"}
-            </h2>
-
-            {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Seu nome"
-                  required={!isLogin}
-                />
-              </div>
-            )}
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Entrar</h2>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -124,20 +99,7 @@ export function Login() {
               disabled={loading}
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
             >
-              {loading ? "Carregando..." : isLogin ? "Entrar" : "Registrar"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError(null);
-              }}
-              className="w-full text-center text-sm text-gray-600 hover:text-gray-900 mt-4"
-            >
-              {isLogin
-                ? "Não tem conta? Registre-se"
-                : "Já tem conta? Entre"}
+              {loading ? "Carregando..." : "Entrar"}
             </button>
           </form>
         </div>

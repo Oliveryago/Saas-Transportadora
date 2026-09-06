@@ -17,7 +17,6 @@ interface AuthContextType {
   impersonatedTenant: Tenant | null;
   impersonateTenant: (tenant: Tenant) => void;
   stopImpersonation: () => void;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -94,53 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  async function signUp(
-    email: string,
-    password: string,
-    name: string
-  ): Promise<void> {
-    const { data: authData, error: authError } =
-      await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-    if (authError) {
-      console.error("Supabase SignUp Error:", authError);
-      throw authError;
-    }
-    if (!authData.user) throw new Error("Sign up failed: User creation returned no data");
-
-    const newTenantId = crypto.randomUUID();
-
-    const tenantRes = await supabase
-      .from("tenants")
-      .insert([{ id: newTenantId, name: "Pessoal" }]);
-
-    if (tenantRes.error) throw tenantRes.error;
-
-    const userRes = await supabase
-      .from("users")
-      .insert([
-        {
-          id: authData.user.id,
-          email,
-          name,
-          tenant_id: newTenantId,
-          role: "admin",
-          metadata: {},
-        },
-      ]);
-
-    if (userRes.error) throw userRes.error;
-
-    const newTenant = { id: newTenantId, name: "Pessoal" } as any;
-    const newUser = { id: authData.user.id, email, name, tenant_id: newTenantId, role: "admin", metadata: {} } as any;
-
-    setUser(newUser);
-    setRealTenant(newTenant);
-  }
-
   async function signIn(email: string, password: string): Promise<void> {
     try {
       await supabase.auth.signInWithPassword({ email, password });
@@ -181,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         impersonatedTenant,
         impersonateTenant,
         stopImpersonation,
-        signUp,
         signIn,
         signOut,
       }}
