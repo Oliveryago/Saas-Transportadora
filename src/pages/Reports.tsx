@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Skeleton } from "../components/shared/SkeletonLoader";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { getLocalDateString } from "../lib/utils/date";
 
 const REPORT_CONFIGS: Record<ReportType, {
@@ -55,6 +57,7 @@ const PIE_COLORS = ["#22c55e", "#f97316", "#6366f1", "#06b6d4", "#eab308", "#8b5
 
 export function Reports() {
   const { tenant } = useAuth();
+  const { canWrite } = usePlanAccess("relatorios");
   const navigate = useNavigate();
   const { settings: companySettings } = useCompanySettings();
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
@@ -85,7 +88,7 @@ export function Reports() {
   const periodLabel = `${formatDate(startDate)} a ${formatDate(endDate)}`;
 
   async function handleExportPDF() {
-    if (!selectedReport || data.length === 0) return;
+    if (!canWrite || !selectedReport || data.length === 0) return;
     const config = REPORT_CONFIGS[selectedReport];
     const cols = getColumns(selectedReport);
     const logoDataUrl = companySettings?.logo_url
@@ -103,7 +106,7 @@ export function Reports() {
   }
 
   async function handleExportExcel() {
-    if (!selectedReport || data.length === 0) return;
+    if (!canWrite || !selectedReport || data.length === 0) return;
     const config = REPORT_CONFIGS[selectedReport];
     const cols = getColumns(selectedReport);
     await exportToExcel(
@@ -241,6 +244,7 @@ export function Reports() {
         </nav>
 
         <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <PlanLockBanner moduleKey="relatorios" />
           <p className="text-gray-500 mb-6">Selecione o tipo de relatório que deseja gerar:</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -283,20 +287,22 @@ export function Reports() {
             </div>
             {data.length > 0 && (
               <div className="flex items-center gap-2">
-                <button
+                <PlanWriteButton
+                  moduleKey="relatorios"
                   onClick={handleExportPDF}
                   className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
                 >
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">PDF</span>
-                </button>
-                <button
+                </PlanWriteButton>
+                <PlanWriteButton
+                  moduleKey="relatorios"
                   onClick={handleExportExcel}
                   className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   <span className="hidden sm:inline">Excel</span>
-                </button>
+                </PlanWriteButton>
               </div>
             )}
           </div>
@@ -304,6 +310,7 @@ export function Reports() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <PlanLockBanner moduleKey="relatorios" />
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

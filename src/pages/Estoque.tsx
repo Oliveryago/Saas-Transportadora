@@ -6,6 +6,8 @@ import type { CategoriaItem, ItemEstoque } from '../types/estoque';
 import { NovaEntradaModal } from '../components/estoque/NovaEntradaModal';
 import { EditarItemModal } from '../components/estoque/EditarItemModal';
 import { ExcluirItemModal } from '../components/estoque/ExcluirItemModal';
+import { PlanLockBanner, PlanWriteButton } from '../components/shared/PlanWriteButton';
+import { usePlanAccess } from '../hooks/usePlanAccess';
 
 const ICONE_CATEGORIA: Record<CategoriaItem, typeof Droplet> = {
   oleo: Droplet,
@@ -30,6 +32,7 @@ function formatarMoeda(valor: number) {
 }
 
 export function EstoquePage() {
+  const { canWrite } = usePlanAccess('estoque');
   const {
     itens,
     itensAtivos,
@@ -53,6 +56,7 @@ export function EstoquePage() {
   });
 
   async function handleReativar(item: ItemEstoque) {
+    if (!canWrite) return;
     setReativandoId(item.id);
     try {
       await reativarItem(item.id);
@@ -65,6 +69,7 @@ export function EstoquePage() {
 
   return (
     <div className="p-6">
+      <PlanLockBanner moduleKey="estoque" />
       <div className="flex items-start justify-between mb-5">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Estoque de peças</h1>
@@ -78,13 +83,14 @@ export function EstoquePage() {
             <Flame size={16} />
             Marcação de fogo
           </Link>
-          <button
+          <PlanWriteButton
+            moduleKey="estoque"
             onClick={() => setModalAberto(true)}
             className="flex items-center gap-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700"
           >
             <Plus size={16} />
             Nova entrada
-          </button>
+          </PlanWriteButton>
         </div>
       </div>
 
@@ -184,32 +190,35 @@ export function EstoquePage() {
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1">
                     {item.ativo === false && (
-                      <button
-                        type="button"
+                      <PlanWriteButton
+                        moduleKey="estoque"
+                        iconOnly
                         onClick={() => void handleReativar(item)}
                         disabled={reativandoId === item.id}
                         title="Reativar item"
                         className="p-1.5 text-slate-400 hover:text-emerald-600 transition disabled:opacity-50"
                       >
                         <RotateCcw size={14} />
-                      </button>
+                      </PlanWriteButton>
                     )}
-                    <button
-                      type="button"
+                    <PlanWriteButton
+                      moduleKey="estoque"
+                      iconOnly
                       onClick={() => setItemEditando(item)}
                       title="Editar item"
                       className="p-1.5 text-slate-400 hover:text-blue-600 transition"
                     >
                       <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
+                    </PlanWriteButton>
+                    <PlanWriteButton
+                      moduleKey="estoque"
+                      iconOnly
                       onClick={() => setItemExcluindo(item)}
                       title="Excluir item"
                       className="p-1.5 text-slate-400 hover:text-red-600 transition"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </PlanWriteButton>
                   </div>
                 </td>
               </tr>
@@ -218,7 +227,7 @@ export function EstoquePage() {
         </table>
       </div>
 
-      {modalAberto && (
+      {canWrite && modalAberto && (
         <NovaEntradaModal
           itens={itensAtivos}
           onClose={() => setModalAberto(false)}
@@ -229,7 +238,7 @@ export function EstoquePage() {
         />
       )}
 
-      {itemEditando && (
+      {canWrite && itemEditando && (
         <EditarItemModal
           item={itemEditando}
           onClose={() => setItemEditando(null)}
@@ -245,7 +254,7 @@ export function EstoquePage() {
         />
       )}
 
-      {itemExcluindo && (
+      {canWrite && itemExcluindo && (
         <ExcluirItemModal
           item={itemExcluindo}
           onClose={() => setItemExcluindo(null)}

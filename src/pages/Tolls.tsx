@@ -4,6 +4,8 @@ import { useTollRecords } from "../hooks/useTollRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useDrivers } from "../hooks/useDrivers";
 import TollModal from "../components/tolls/TollModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import type { TollRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
@@ -11,6 +13,7 @@ import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate } from "../lib/utils/date";
 
 export function Tolls() {
+    const { canWrite } = usePlanAccess("pedagio");
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
     const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
     const { records, loading, deleteRecord } = useTollRecords(selectedVehicleId, dateFilter);
@@ -31,11 +34,12 @@ export function Tolls() {
                     <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
                         <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
-                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Pedágio</button>
+                        <PlanWriteButton moduleKey="pedagio" onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Pedágio</PlanWriteButton>
                     </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">
+                <PlanLockBanner moduleKey="pedagio" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Milestone className="w-8 h-8 text-amber-500" /><div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold">{records.length}</p></div></div></div>
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><MapPin className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Cidades</p><p className="text-2xl font-bold">{new Set(records.map((r) => r.city).filter(Boolean)).size}</p></div></div></div>
@@ -54,14 +58,14 @@ export function Tolls() {
                                     <td className="px-4 py-3 text-sm">{r.trip || "-"}</td>
                                     <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>
-                                    <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
+                                    <td className="px-4 py-3"><div className="flex gap-1 justify-end"><PlanWriteButton moduleKey="pedagio" iconOnly title="Editar" onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></PlanWriteButton><PlanWriteButton moduleKey="pedagio" iconOnly title="Excluir" onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></PlanWriteButton></div></td>
                                 </tr>
                             ))}</tbody>
                         </table>
                     </div>
                 )}
             </main>
-            <TollModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} drivers={drivers} />
+            {canWrite && <TollModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} drivers={drivers} />}
         </div>
     );
 }

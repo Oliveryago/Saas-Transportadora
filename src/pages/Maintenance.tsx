@@ -8,12 +8,15 @@ import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } fro
 import { generateMaintenanceOS } from "../services/documentGenerator";
 import { urlToDataURL } from "../services/companySettingsHelper";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
 import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Maintenance() {
+    const { canWrite } = usePlanAccess("manutencao");
     const { user, signOut, tenant } = useAuth();
     const { settings: companySettings } = useCompanySettings();
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -176,13 +179,15 @@ export function Maintenance() {
                     </div>
                 </div>
 
-                <button
+                <PlanLockBanner moduleKey="manutencao" />
+                <PlanWriteButton
+                    moduleKey="manutencao"
                     onClick={() => { setEditingRecord(null); setModalOpen(true); }}
                     className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 mb-6"
                 >
                     <Plus className="w-5 h-5" />
                     Nova Manutenção
-                </button>
+                </PlanWriteButton>
 
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                     {filteredRecords.length > 0 ? (
@@ -224,16 +229,18 @@ export function Maintenance() {
                                                     >
                                                         {generatingOS === record.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                                                     </button>
-                                                    <button
+                                                    <PlanWriteButton
+                                                        moduleKey="manutencao"
+                                                        iconOnly
+                                                        title="Editar"
                                                         onClick={() => { setEditingRecord(record as any); setModalOpen(true); }}
                                                         className="text-blue-600 hover:text-blue-700"
-                                                        title="Editar"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button onClick={() => deleteRecord(record.id)} className="text-red-600 hover:text-red-700" title="Excluir">
+                                                    </PlanWriteButton>
+                                                    <PlanWriteButton moduleKey="manutencao" iconOnly title="Excluir" onClick={() => deleteRecord(record.id)} className="text-red-600 hover:text-red-700">
                                                         <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    </PlanWriteButton>
                                                 </div>
                                             </td>
                                         </tr>
@@ -249,11 +256,13 @@ export function Maintenance() {
                     )}
                 </div>
 
+                {canWrite && (
                 <MaintenanceModal
                     open={modalOpen}
                     onClose={handleModalClose}
                     editingRecord={editingRecord}
                 />
+                )}
             </main>
         </div>
     );

@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, CircleDot, DollarSign, Calendar } from "lucide-rea
 import { useTireChanges } from "../hooks/useTireChanges";
 import { useVehicles } from "../hooks/useVehicles";
 import TireChangeModal from "../components/tirechange/TireChangeModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import type { TireChange } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
@@ -10,6 +12,7 @@ import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate } from "../lib/utils/date";
 
 export function TireChangePage() {
+    const { canWrite } = usePlanAccess("troca_pneus");
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
     const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
     const { records, loading, deleteRecord } = useTireChanges(selectedVehicleId, dateFilter);
@@ -29,11 +32,12 @@ export function TireChangePage() {
                     <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
                         <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
-                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Nova Troca</button>
+                        <PlanWriteButton moduleKey="troca_pneus" onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Nova Troca</PlanWriteButton>
                     </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">
+                <PlanLockBanner moduleKey="troca_pneus" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><CircleDot className="w-8 h-8 text-blue-500" /><div><p className="text-sm text-gray-500">Pneus trocados</p><p className="text-2xl font-bold">{totalTires}</p></div></div></div>
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-purple-500" /><div><p className="text-sm text-gray-500">Registros</p><p className="text-2xl font-bold">{records.length}</p></div></div></div>
@@ -53,14 +57,14 @@ export function TireChangePage() {
                                     <td className="px-4 py-3 text-sm">{r.km_at_change ? r.km_at_change.toLocaleString("pt-BR") : "-"}</td>
                                     <td className="px-4 py-3 text-sm">{formatLocalDate(r.date)}</td>
                                     <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}{r.has_discount && <span className="ml-1 text-xs text-emerald-600">(-desc)</span>}</td>
-                                    <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
+                                    <td className="px-4 py-3"><div className="flex gap-1 justify-end"><PlanWriteButton moduleKey="troca_pneus" iconOnly title="Editar" onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></PlanWriteButton><PlanWriteButton moduleKey="troca_pneus" iconOnly title="Excluir" onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></PlanWriteButton></div></td>
                                 </tr>
                             ))}</tbody>
                         </table>
                     </div>
                 )}
             </main>
-            <TireChangeModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} />
+            {canWrite && <TireChangeModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} />}
         </div>
     );
 }

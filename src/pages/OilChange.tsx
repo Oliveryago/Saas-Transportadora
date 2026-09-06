@@ -6,6 +6,8 @@ import { useFuelRecords } from "../hooks/useFuelRecords";
 import { useAuth } from "../contexts/AuthContext";
 import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Droplets, AlertTriangle, Bell, Settings } from "lucide-react";
 import OilChangeModal from "../components/oilchange/OilChangeModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { OIL_TYPE_LABELS } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
@@ -13,6 +15,7 @@ import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function OilChange() {
+    const { canWrite } = usePlanAccess("troca_oleo");
     const { user, signOut, tenant } = useAuth();
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
     const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
@@ -107,6 +110,7 @@ export function OilChange() {
             </nav>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <PlanLockBanner moduleKey="troca_oleo" />
                 {/* Alert banner */}
                 {pending.length > 0 && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-3">
@@ -154,13 +158,14 @@ export function OilChange() {
                     </div>
                 </div>
 
-                <button
+                <PlanWriteButton
+                    moduleKey="troca_oleo"
                     onClick={() => { setEditingAlert(null); setModalOpen(true); }}
                     className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 mb-6"
                 >
                     <Plus className="w-5 h-5" />
                     Nova Troca de Óleo
-                </button>
+                </PlanWriteButton>
 
                 <div className="grid gap-4">
                     {alerts.map((alert) => {
@@ -186,15 +191,18 @@ export function OilChange() {
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
+                                        <PlanWriteButton
+                                            moduleKey="troca_oleo"
+                                            iconOnly
+                                            title="Editar"
                                             onClick={() => { setEditingAlert(alert as any); setModalOpen(true); }}
                                             className="text-blue-600 hover:text-blue-700"
                                         >
                                             <Edit2 className="w-5 h-5" />
-                                        </button>
-                                        <button onClick={() => deleteAlert(alert.id)} className="text-red-600 hover:text-red-700">
+                                        </PlanWriteButton>
+                                        <PlanWriteButton moduleKey="troca_oleo" iconOnly title="Excluir" onClick={() => deleteAlert(alert.id)} className="text-red-600 hover:text-red-700">
                                             <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        </PlanWriteButton>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -231,11 +239,13 @@ export function OilChange() {
                     )}
                 </div>
 
+                {canWrite && (
                 <OilChangeModal
                     open={modalOpen}
                     onClose={() => { setModalOpen(false); setEditingAlert(null); }}
                     editingAlert={editingAlert}
                 />
+                )}
             </main>
         </div>
     );

@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, Shield, DollarSign, AlertTriangle } from "lucide-r
 import { useInsuranceRecords } from "../hooks/useInsuranceRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import InsuranceModal from "../components/insurance/InsuranceModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import type { InsuranceRecord } from "../types";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
@@ -10,6 +12,7 @@ import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
 
 export function Insurance() {
+    const { canWrite } = usePlanAccess("seguro");
     const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
     const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
     const { records, loading, deleteRecord } = useInsuranceRecords(selectedVehicleId, dateFilter);
@@ -36,11 +39,12 @@ export function Insurance() {
                     <div className="flex items-center gap-3 flex-wrap">
                         <VehicleFilter value={selectedVehicleId} onChange={setSelectedVehicleId} />
                         <DateFilterPicker value={dateFilter} onChange={setDateFilter} label="Filtrar vencimento" />
-                        <button onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Seguro</button>
+                        <PlanWriteButton moduleKey="seguro" onClick={() => { setEditing(null); setModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 tracking-tight"><Plus className="w-4 h-4" /> Novo Seguro</PlanWriteButton>
                     </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-6 py-6">
+                <PlanLockBanner moduleKey="seguro" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><Shield className="w-8 h-8 text-blue-500" /><div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold">{records.length}</p></div></div></div>
                     <div className="bg-white rounded-xl p-5 border"><div className="flex items-center gap-3"><AlertTriangle className="w-8 h-8 text-amber-500" /><div><p className="text-sm text-gray-500">Vencendo em 30 dias</p><p className="text-2xl font-bold text-amber-600">{expiring}</p></div></div></div>
@@ -66,7 +70,7 @@ export function Insurance() {
                                         <td className="px-4 py-3 text-sm">{r.policy_number || "-"}</td>
                                         <td className="px-4 py-3 text-sm font-medium">{r.expiration_date ? (<span className={isExpired ? "text-red-600" : isExpiring ? "text-amber-600" : ""}>{formatLocalDate(r.expiration_date)}</span>) : "-"}</td>
                                         <td className="px-4 py-3 text-sm font-medium">{r.value_brl ? `R$ ${r.value_brl.toFixed(2)}` : "-"}</td>
-                                        <td className="px-4 py-3"><div className="flex gap-1 justify-end"><button onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
+                                        <td className="px-4 py-3"><div className="flex gap-1 justify-end"><PlanWriteButton moduleKey="seguro" iconOnly title="Editar" onClick={() => { setEditing(r); setModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></PlanWriteButton><PlanWriteButton moduleKey="seguro" iconOnly title="Excluir" onClick={() => deleteRecord(r.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></PlanWriteButton></div></td>
                                     </tr>
                                 )
                             })}</tbody>
@@ -74,7 +78,7 @@ export function Insurance() {
                     </div>
                 )}
             </main>
-            <InsuranceModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} />
+            {canWrite && <InsuranceModal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }} editingRecord={editing} vehicles={vehicles} />}
         </div>
     );
 }

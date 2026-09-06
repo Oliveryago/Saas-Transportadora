@@ -12,6 +12,8 @@ import {
 import { generateVoucher } from "../services/documentGenerator";
 import { urlToDataURL } from "../services/companySettingsHelper";
 import FuelModal from "../components/fuel/FuelModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { FuelReportModal } from "../components/fuel/FuelReportModal";
 import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
@@ -48,6 +50,7 @@ const formatTimelineDate = (dateStr: string) => {
 };
 
 export function Fuel() {
+  const { canWrite } = usePlanAccess("combustivel");
   const { user, tenant, signOut } = useAuth();
   const { settings: companySettings } = useCompanySettings();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -110,6 +113,7 @@ export function Fuel() {
   }
 
   const handleEdit = (recordId: string) => {
+    if (!canWrite) return;
     const record = records.find(r => r.id === recordId);
     if (record) {
       setEditingRecord(record as any);
@@ -250,15 +254,17 @@ export function Fuel() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <PlanLockBanner moduleKey="combustivel" />
         {/* Actions bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <button
+          <PlanWriteButton
+            moduleKey="combustivel"
             onClick={() => { setEditingRecord(null); setFuelModalOpen(true); }}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm"
           >
             <Plus className="w-5 h-5" />
             Novo Abastecimento
-          </button>
+          </PlanWriteButton>
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -563,12 +569,12 @@ export function Fuel() {
                                     >
                                       {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                                     </button>
-                                    <button onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition" title="Editar">
+                                    <PlanWriteButton moduleKey="combustivel" iconOnly title="Editar" onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition">
                                       <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
+                                    </PlanWriteButton>
+                                    <PlanWriteButton moduleKey="combustivel" iconOnly title="Excluir" onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
                                       <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    </PlanWriteButton>
                                   </div>
                                 </div>
 
@@ -748,12 +754,12 @@ export function Fuel() {
                             >
                               {generatingVoucher === trecho.recordId ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                             </button>
-                            <button onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition" title="Editar">
+                            <PlanWriteButton moduleKey="combustivel" iconOnly title="Editar" onClick={() => handleEdit(trecho.recordId)} className="text-blue-400 hover:text-blue-600 transition">
                               <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition" title="Excluir">
+                            </PlanWriteButton>
+                            <PlanWriteButton moduleKey="combustivel" iconOnly title="Excluir" onClick={() => deleteRecord(trecho.recordId)} className="text-red-400 hover:text-red-600 transition">
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </PlanWriteButton>
                           </div>
                         </td>
                       </tr>
@@ -765,6 +771,7 @@ export function Fuel() {
           </div>
         )}
 
+        {canWrite && (
         <FuelModal
           open={fuelModalOpen}
           onClose={() => { setFuelModalOpen(false); setEditingRecord(null); }}
@@ -773,6 +780,7 @@ export function Fuel() {
           addRecord={addRecord}
           updateRecord={updateRecord}
         />
+        )}
 
         <FuelReportModal
           open={reportModal !== null}

@@ -7,8 +7,11 @@ import type { PneuIndividual, PneuMovimentacao, PneuRecapagem } from "../types/p
 import { PNEU_STATUS_LABEL } from "../types/pneu";
 import { formatLocalDate } from "../lib/utils/date";
 import { formatBRL } from "../lib/utils/money";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 
 export function PneuFichaPage() {
+  const { canWrite } = usePlanAccess("marcacao_pneus");
   const { id } = useParams();
   const navigate = useNavigate();
   const { carregarFicha, atualizarStatus, registrarRecapagem } = usePneusIndividuais();
@@ -38,7 +41,7 @@ export function PneuFichaPage() {
   }, [id]);
 
   async function montar() {
-    if (!pneu) return;
+    if (!canWrite || !pneu) return;
     if (pneu.status === "aguardando_marcacao") {
       setErro("Este pneu ainda aguarda marcação de fogo e não pode ser vinculado a um veículo.");
       return;
@@ -64,7 +67,7 @@ export function PneuFichaPage() {
   }
 
   async function recapar() {
-    if (!pneu) return;
+    if (!canWrite || !pneu) return;
     setBusy(true);
     try {
       await registrarRecapagem(pneu.id, recapData, recapObs);
@@ -79,7 +82,7 @@ export function PneuFichaPage() {
   }
 
   async function descartar() {
-    if (!pneu) return;
+    if (!canWrite || !pneu) return;
     if (!confirm("Descartar este pneu? O código não poderá ser reaproveitado.")) return;
     setBusy(true);
     try {
@@ -116,6 +119,7 @@ export function PneuFichaPage() {
         <Link to="/pneus/aguardando" className="text-sm text-blue-600 hover:underline">Ver fila de marcação</Link>
       </div>
 
+      <PlanLockBanner moduleKey="marcacao_pneus" />
       {erro && <p className="text-sm text-red-600 mb-3">{erro}</p>}
 
       <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -131,28 +135,28 @@ export function PneuFichaPage() {
         <div className="bg-white border rounded-xl p-4 text-sm space-y-2">
           <p className="font-medium text-slate-800">Vínculo em veículo</p>
           <p>Atual: {vehicle ? `${vehicle.license_plate} · ${pneu.posicao || "posição não informada"}` : "Não montado"}</p>
-          <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full border rounded-md px-3 py-2">
+          <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!canWrite} className="w-full border rounded-md px-3 py-2 disabled:bg-slate-50 disabled:opacity-70">
             <option value="">Selecione o veículo</option>
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>{v.license_plate} - {v.model}</option>
             ))}
           </select>
-          <input value={posicao} onChange={(e) => setPosicao(e.target.value)} placeholder="Posição (ex: tração L)" className="w-full border rounded-md px-3 py-2" />
-          <button type="button" disabled={busy} onClick={montar} className="w-full bg-blue-600 text-white rounded-md py-2 disabled:opacity-50">
+          <input value={posicao} onChange={(e) => setPosicao(e.target.value)} disabled={!canWrite} placeholder="Posição (ex: tração L)" className="w-full border rounded-md px-3 py-2 disabled:bg-slate-50 disabled:opacity-70" />
+          <PlanWriteButton moduleKey="marcacao_pneus" disabled={busy} onClick={montar} className="w-full bg-blue-600 text-white rounded-md py-2 disabled:opacity-50">
             Montar neste veículo
-          </button>
-          <button type="button" disabled={busy} onClick={descartar} className="w-full border border-red-200 text-red-700 rounded-md py-2">
+          </PlanWriteButton>
+          <PlanWriteButton moduleKey="marcacao_pneus" disabled={busy} onClick={descartar} className="w-full border border-red-200 text-red-700 rounded-md py-2">
             Descartar pneu
-          </button>
+          </PlanWriteButton>
         </div>
       </div>
 
       <div className="bg-white border rounded-xl p-4 mb-4">
         <p className="font-medium text-slate-800 mb-2">Recapagens ({recaps.length})</p>
         <div className="flex flex-wrap gap-2 mb-3">
-          <input type="date" value={recapData} onChange={(e) => setRecapData(e.target.value)} className="border rounded-md px-3 py-2 text-sm" />
-          <input value={recapObs} onChange={(e) => setRecapObs(e.target.value)} placeholder="Observação" className="border rounded-md px-3 py-2 text-sm flex-1 min-w-[12rem]" />
-          <button type="button" disabled={busy} onClick={recapar} className="px-3 py-2 bg-slate-800 text-white rounded-md text-sm">Registrar recapagem</button>
+          <input type="date" value={recapData} onChange={(e) => setRecapData(e.target.value)} disabled={!canWrite} className="border rounded-md px-3 py-2 text-sm disabled:bg-slate-50 disabled:opacity-70" />
+          <input value={recapObs} onChange={(e) => setRecapObs(e.target.value)} disabled={!canWrite} placeholder="Observação" className="border rounded-md px-3 py-2 text-sm flex-1 min-w-[12rem] disabled:bg-slate-50 disabled:opacity-70" />
+          <PlanWriteButton moduleKey="marcacao_pneus" disabled={busy} onClick={recapar} className="px-3 py-2 bg-slate-800 text-white rounded-md text-sm">Registrar recapagem</PlanWriteButton>
         </div>
         {recaps.length === 0 ? (
           <p className="text-sm text-slate-500">Nenhuma recapagem.</p>

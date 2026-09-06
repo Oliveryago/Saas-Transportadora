@@ -5,12 +5,15 @@ import { useVehicles } from "../hooks/useVehicles";
 import { useCompanySettings } from "../hooks/useCompanySettings";
 import { useImplements } from "../hooks/useImplements";
 import { MotoristaForm } from "../components/motorista/MotoristaForm";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { DriverCnhActions } from "../components/motorista/DriverCnhActions";
 import { generateDriverProfile } from "../services/documentGenerator";
 import { formatCnhExpiryLabel, getCnhExpiryStatus } from "../utils/cnhDocument";
 import type { Driver } from "../types";
 
 export function Drivers() {
+  const { canWrite } = usePlanAccess("motoristas");
   const { drivers, loading, addDriver, updateDriver, getCnhSignedUrl } = useDrivers();
   const { vehicles } = useVehicles();
   const { implements: implementsList } = useImplements();
@@ -21,6 +24,7 @@ export function Drivers() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleAddMotorista = async (data: any) => {
+    if (!canWrite) return;
     try {
       if (editingDriver) {
         await updateDriver(editingDriver.id, data);
@@ -38,6 +42,7 @@ export function Drivers() {
   };
 
   const handleEdit = (driver: Driver) => {
+    if (!canWrite) return;
     setEditingDriver(driver);
     setShowForm(true);
   };
@@ -112,27 +117,31 @@ export function Drivers() {
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Motoristas</h1>
           <p className="text-gray-500">Controle de motoristas e documentos da frota</p>
         </div>
-        <button
-          onClick={() => {
-            if (showForm) {
+        {showForm ? (
+          <button
+            onClick={() => {
               setShowForm(false);
               setEditingDriver(null);
-            } else {
-              setShowForm(true);
-            }
-          }}
-          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-md transition-all font-semibold"
-        >
-          {showForm ? "Voltar para Lista" : (
-            <>
-              <UserPlus className="w-5 h-5" />
-              Novo Motorista
-            </>
-          )}
-        </button>
+            }}
+            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-md transition-all font-semibold"
+          >
+            Voltar para Lista
+          </button>
+        ) : (
+          <PlanWriteButton
+            moduleKey="motoristas"
+            onClick={() => setShowForm(true)}
+            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-md transition-all font-semibold"
+          >
+            <UserPlus className="w-5 h-5" />
+            Novo Motorista
+          </PlanWriteButton>
+        )}
       </header>
 
-      {showForm ? (
+      <PlanLockBanner moduleKey="motoristas" />
+
+      {showForm && canWrite ? (
         <div className="max-w-4xl mx-auto">
           <MotoristaForm onSubmit={handleAddMotorista} initialData={editingDriver || undefined} />
         </div>
@@ -169,12 +178,13 @@ export function Drivers() {
                 <User className="w-8 h-8 text-gray-300" />
               </div>
               <p className="text-gray-500 font-medium">Nenhum motorista encontrado.</p>
-              <button 
+              <PlanWriteButton
+                moduleKey="motoristas"
                 onClick={() => setShowForm(true)}
                 className="mt-4 text-indigo-600 font-semibold hover:underline"
               >
                 Cadastrar o primeiro agora
-              </button>
+              </PlanWriteButton>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -185,7 +195,7 @@ export function Drivers() {
                     key={driver.id} 
                     className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
                   >
-                    <div className="p-5 flex-1 cursor-pointer" onClick={() => handleEdit(driver)}>
+                    <div className={`p-5 flex-1 ${canWrite ? "cursor-pointer" : ""}`} onClick={() => handleEdit(driver)}>
                       <div className="flex items-start justify-between mb-4">
                         <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 overflow-hidden border border-indigo-100">
                           {driver.photo_url ? (
@@ -240,13 +250,14 @@ export function Drivers() {
                     </div>
                     
                     <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50">
-                      <div 
-                        className="flex-1 px-5 py-3 flex items-center justify-between group-hover:bg-indigo-50 transition-colors cursor-pointer"
+                      <PlanWriteButton
+                        moduleKey="motoristas"
                         onClick={() => handleEdit(driver)}
+                        className="flex-1 px-5 py-3 flex items-center justify-between group-hover:bg-indigo-50 transition-colors"
                       >
                         <span className="text-xs font-bold text-gray-400 uppercase group-hover:text-indigo-400">Editar</span>
                         <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
-                      </div>
+                      </PlanWriteButton>
                       <div className="w-px h-full bg-gray-200"></div>
                       <button
                         onClick={(e) => handleGenerateProfile(e, driver)}

@@ -6,6 +6,8 @@ import { useVehicles } from "../hooks/useVehicles";
 import { usePhotoUpload } from "../hooks/usePhotoUpload";
 import { useSuppliers } from "../hooks/useSuppliers";
 import { getLocalDateString } from "../lib/utils/date";
+import { PlanLockBanner } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import type { FuelType } from "../types";
 import { FUEL_TYPE_LABELS } from "../types";
 import {
@@ -33,6 +35,7 @@ const labelClass = "block text-xs font-semibold text-blue-300 uppercase tracking
 
 export function DriverFuel() {
   const { user } = useAuth();
+  const { canWrite } = usePlanAccess("combustivel");
   const navigate = useNavigate();
   const { vehicles } = useVehicles();
   const { addRecord } = useFuelRecords();
@@ -95,6 +98,7 @@ export function DriverFuel() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canWrite) return;
     setError(null);
 
     if (!vehicleId) return setError("Selecione um veículo");
@@ -172,6 +176,8 @@ export function DriverFuel() {
       </div>
 
       <form onSubmit={handleSubmit} className="px-5 pt-6 space-y-5 overflow-hidden w-full max-w-full">
+        <PlanLockBanner moduleKey="combustivel" />
+        <fieldset disabled={!canWrite} className={!canWrite ? "opacity-70" : undefined}>
 
         {/* Vehicle selector */}
         <div className="w-full">
@@ -580,6 +586,7 @@ export function DriverFuel() {
             </>
           )}
         </button>
+        </fieldset>
       </form>
     </div>
   );

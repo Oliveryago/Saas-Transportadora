@@ -3,6 +3,8 @@ import { Check, FileDown, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePneusIndividuais } from "../hooks/usePneusIndividuais";
 import { gerarEtiquetasMarcacaoPneu } from "../services/pneuLabels";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { formatLocalDate } from "../lib/utils/date";
 import type { PneuIndividual } from "../types/pneu";
 
@@ -11,6 +13,7 @@ function grupoKey(pneu: PneuIndividual) {
 }
 
 export function PneusAguardandoPage() {
+  const { canWrite } = usePlanAccess("marcacao_pneus");
   const { pneus, loading, error, atualizarStatus, recarregar } = usePneusIndividuais();
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,7 +33,7 @@ export function PneusAguardandoPage() {
   }
 
   async function confirmar(ids: string[]) {
-    if (ids.length === 0) return;
+    if (!canWrite || ids.length === 0) return;
     setBusy(true);
     try {
       await atualizarStatus(ids, "em_estoque", { observacao: "Marcação de fogo aplicada" });
@@ -45,6 +48,7 @@ export function PneusAguardandoPage() {
 
   return (
     <div className="p-6">
+      <PlanLockBanner moduleKey="marcacao_pneus" />
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
@@ -62,14 +66,14 @@ export function PneusAguardandoPage() {
           >
             <FileDown size={16} /> PDF das etiquetas
           </button>
-          <button
-            type="button"
+          <PlanWriteButton
+            moduleKey="marcacao_pneus"
             disabled={busy || selecionados.length === 0}
             onClick={() => confirmar(selecionados)}
             className="inline-flex items-center gap-2 text-sm px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
           >
             <Check size={16} /> Confirmar lote ({selecionados.length})
-          </button>
+          </PlanWriteButton>
         </div>
       </div>
 
@@ -135,14 +139,14 @@ export function PneusAguardandoPage() {
                           : "—"}
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <button
-                          type="button"
+                        <PlanWriteButton
+                          moduleKey="marcacao_pneus"
                           disabled={busy}
                           onClick={() => confirmar([pneu.id])}
                           className="text-xs text-emerald-700 hover:underline"
                         >
                           Marcação aplicada
-                        </button>
+                        </PlanWriteButton>
                       </td>
                     </tr>
                   ))}

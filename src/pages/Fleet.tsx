@@ -7,6 +7,8 @@ import { useCompanySettings } from "../hooks/useCompanySettings";
 import { Plus, LogOut, ArrowLeft, Trash2, Edit2, FileText, Loader2 } from "lucide-react";
 import VehicleModal from "../components/vehicles/VehicleModal";
 import ImplementModal from "../components/implements/ImplementModal";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import { IMPLEMENT_TYPE_LABELS } from "../types";
 import type { Vehicle, Implement } from "../types";
 import { generateVehicleSheet } from "../services/documentGenerator";
@@ -15,6 +17,7 @@ import { urlToDataURL } from "../services/companySettingsHelper";
 import { supabase } from "../lib/supabase";
 
 export function Fleet() {
+  const { canWrite } = usePlanAccess("frota");
   const { user, tenant, signOut } = useAuth();
   const { settings: companySettings } = useCompanySettings();
   const { vehicles, deleteVehicle, getVehicleDocSignedUrl } = useVehicles();
@@ -33,6 +36,7 @@ export function Fleet() {
   }
 
   async function handleDeleteVehicle(id: string) {
+    if (!canWrite) return;
     if (!window.confirm("Certeza que deseja excluir este cavalo?")) return;
     try {
       await deleteVehicle(id);
@@ -43,6 +47,7 @@ export function Fleet() {
   }
 
   async function handleDeleteImplement(id: string) {
+    if (!canWrite) return;
     if (!window.confirm("Certeza que deseja excluir este implemento?")) return;
     try {
       await deleteImplement(id);
@@ -141,6 +146,7 @@ export function Fleet() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <PlanLockBanner moduleKey="frota" />
         <div className="mb-8 flex gap-4 border-b">
           <button
             onClick={() => setActiveTab("vehicles")}
@@ -164,7 +170,8 @@ export function Fleet() {
 
         {activeTab === "vehicles" && (
           <div>
-            <button
+            <PlanWriteButton
+              moduleKey="frota"
               onClick={() => {
                 setEditingVehicle(null);
                 setVehicleModalOpen(true);
@@ -173,7 +180,7 @@ export function Fleet() {
             >
               <Plus className="w-5 h-5" />
               Novo Cavalo
-            </button>
+            </PlanWriteButton>
 
             <div className="grid gap-4">
               {vehicles.map((vehicle) => (
@@ -197,23 +204,27 @@ export function Fleet() {
                       >
                         {generatingSheet === vehicle.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
                       </button>
-                      <button
+                      <PlanWriteButton
+                        moduleKey="frota"
+                        iconOnly
+                        title="Editar"
                         onClick={() => {
                           setEditingVehicle(vehicle);
                           setVehicleModalOpen(true);
                         }}
                         className="text-blue-600 hover:text-blue-700"
-                        title="Editar"
                       >
                         <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button
+                      </PlanWriteButton>
+                      <PlanWriteButton
+                        moduleKey="frota"
+                        iconOnly
+                        title="Excluir"
                         onClick={() => handleDeleteVehicle(vehicle.id)}
                         className="text-red-600 hover:text-red-700"
-                        title="Excluir"
                       >
                         <Trash2 className="w-5 h-5" />
-                      </button>
+                      </PlanWriteButton>
                     </div>
                   </div>
 
@@ -256,7 +267,8 @@ export function Fleet() {
 
         {activeTab === "implements" && (
           <div>
-            <button
+            <PlanWriteButton
+              moduleKey="frota"
               onClick={() => {
                 setEditingImplement(null);
                 setImplementModalOpen(true);
@@ -265,7 +277,7 @@ export function Fleet() {
             >
               <Plus className="w-5 h-5" />
               Novo Implemento
-            </button>
+            </PlanWriteButton>
 
             <div className="grid gap-4">
               {implements_.map((impl) => (
@@ -284,7 +296,10 @@ export function Fleet() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <PlanWriteButton
+                        moduleKey="frota"
+                        iconOnly
+                        title="Editar"
                         onClick={() => {
                           setEditingImplement(impl);
                           setImplementModalOpen(true);
@@ -292,13 +307,16 @@ export function Fleet() {
                         className="text-blue-600 hover:text-blue-700"
                       >
                         <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button
+                      </PlanWriteButton>
+                      <PlanWriteButton
+                        moduleKey="frota"
+                        iconOnly
+                        title="Excluir"
                         onClick={() => handleDeleteImplement(impl.id)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-5 h-5" />
-                      </button>
+                      </PlanWriteButton>
                     </div>
                   </div>
                   <DriverCnhActions
@@ -322,6 +340,7 @@ export function Fleet() {
           </div>
         )}
 
+        {canWrite && (
         <VehicleModal
           open={vehicleModalOpen}
           onClose={() => {
@@ -330,7 +349,9 @@ export function Fleet() {
           }}
           editingVehicle={editingVehicle}
         />
+        )}
 
+        {canWrite && (
         <ImplementModal
           open={implementModalOpen}
           onClose={() => {
@@ -339,6 +360,7 @@ export function Fleet() {
           }}
           editingImplement={editingImplement}
         />
+        )}
       </main>
     </div>
   );

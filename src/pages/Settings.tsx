@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { useCompanySettings } from "../hooks/useCompanySettings";
+import { PlanLockBanner, PlanWriteButton } from "../components/shared/PlanWriteButton";
+import { usePlanAccess } from "../hooks/usePlanAccess";
 import {
     User, Lock, Building2, Save,
     Users, UserPlus, X, Eye, EyeOff,
@@ -43,6 +45,7 @@ function maskCEP(v: string) {
 
 export function Settings() {
     const { user, tenant } = useAuth();
+    const { canWrite } = usePlanAccess("configuracoes");
     const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
     // ── Company Settings ──
@@ -100,6 +103,7 @@ export function Settings() {
 
     async function handleSaveCompany(e: React.FormEvent) {
         e.preventDefault();
+        if (!canWrite) return;
         setCompanyAlert(null);
         const ok = await save({
             company_name: companyName,
@@ -118,7 +122,7 @@ export function Settings() {
 
     async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !canWrite) return;
         if (file.size > 2 * 1024 * 1024) {
             setCompanyAlert({ type: "error", text: "A logo deve ter no máximo 2MB" });
             return;
@@ -139,6 +143,7 @@ export function Settings() {
     }
 
     async function handleRemoveLogo() {
+        if (!canWrite) return;
         const ok = await removeLogo();
         if (ok) {
             setLogoPreview(null);
@@ -189,6 +194,7 @@ export function Settings() {
 
     async function handleCreateUser(e: React.FormEvent) {
         e.preventDefault();
+        if (!canWrite) return;
         setSubmitting(true);
         setUserAlert(null);
         try {
@@ -308,6 +314,9 @@ export function Settings() {
                             </h2>
                             <p className="text-sm text-gray-500 mt-1">Essas informações aparecem no cabeçalho de todos os relatórios e PDFs gerados.</p>
                         </div>
+                        <div className="px-6 pt-4">
+                            <PlanLockBanner moduleKey="configuracoes" />
+                        </div>
 
                         {settingsLoading ? (
                             <div className="flex items-center justify-center py-12">
@@ -315,6 +324,7 @@ export function Settings() {
                             </div>
                         ) : (
                             <form onSubmit={handleSaveCompany} className="p-6 space-y-6">
+                                <fieldset disabled={!canWrite} className={!canWrite ? "opacity-70" : undefined}>
 
                                 {/* Logo upload */}
                                 <div>
@@ -522,6 +532,7 @@ export function Settings() {
                                         {saving ? "Salvando..." : "Salvar Configurações"}
                                     </button>
                                 </div>
+                                </fieldset>
                             </form>
                         )}
                     </div>
@@ -534,12 +545,13 @@ export function Settings() {
                             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                 <Users className="w-5 h-5 text-blue-600" /> Usuários da Empresa
                             </h2>
-                            <button
+                            <PlanWriteButton
+                                moduleKey="configuracoes"
                                 onClick={() => setShowUserModal(true)}
                                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
                             >
                                 <UserPlus className="w-4 h-4" /> Novo Usuário
-                            </button>
+                            </PlanWriteButton>
                         </div>
                         <div className="p-6">
                             {usersLoading ? (
@@ -615,7 +627,7 @@ export function Settings() {
             </main>
 
             {/* ── Modal Novo Usuário ── */}
-            {showUserModal && (
+            {canWrite && showUserModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
                         <div className="flex items-center justify-between p-6 border-b">
