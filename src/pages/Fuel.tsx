@@ -20,6 +20,7 @@ import { DateFilterPicker } from "../components/shared/DateFilter";
 import { useDateFilter } from "../hooks/useDateFilter";
 import { FuelRecord } from "../types";
 import { formatLocalDate } from "../lib/utils/date";
+import { estimateTankLevel } from "../utils/fuelTankEstimate";
 
 interface TrechoData {
   recordId: string;
@@ -56,7 +57,7 @@ export function Fuel() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const { filter: dateFilter, setFilter: setDateFilter } = useDateFilter();
   const { records, deleteRecord, addRecord, updateRecord } = useFuelRecords(selectedVehicleId, dateFilter);
-  const { vehicles } = useVehicles();
+  const { vehicles, refetch: refetchVehicles } = useVehicles();
   const navigate = useNavigate();
   const [fuelModalOpen, setFuelModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -367,41 +368,33 @@ export function Fuel() {
               const isExpanded = expandedVehicle === vehicleId || Object.keys(trechosPerVehicle).length === 1;
 
               const tankCapacity = vehicle?.tank_capacity || 0;
-              let currentFuel = 0;
-              let remainingKm = 0;
-              let fuelPercentage = 0;
-
-              if (tankCapacity > 0) {
-                const lastTrecho = trechos[trechos.length - 1];
-                const lastKm = lastTrecho ? lastTrecho.kmFinal : 0;
-                
-                // Usa o KM simulado ou o KM atual salvo no veículo
-                const currentKm = simulatedKm[vehicleId] !== undefined 
-                  ? simulatedKm[vehicleId] 
-                  : (vehicle?.current_km || 0);
-                  
-                const distanceSinceRefuel = Math.max(0, currentKm - lastKm);
-                
-                // 2) Calcular o consumo médio utilizando TODOS os abastecimentos
-                const historicoValido = trechos.filter(t => t.kmPorLitro > 0);
-                const consumoMedio = historicoValido.length > 0
-                  ? historicoValido.reduce((total, item) => total + item.kmPorLitro, 0) / historicoValido.length
-                  : 0;
-                
-                // 3) Litros consumidos
-                const litrosConsumidos = consumoMedio > 0 ? distanceSinceRefuel / consumoMedio : 0;
-                
-                // 4) Combustível restante
-                currentFuel = tankCapacity - litrosConsumidos;
-                if (currentFuel < 0) {
-                  currentFuel = 0;
-                }
-                
-                // 5) Autonomia restante
-                remainingKm = currentFuel * consumoMedio;
-                
-                fuelPercentage = Math.min(100, Math.max(0, (currentFuel / tankCapacity) * 100));
-              }
+              const historicoValido = trechos.filter(t => t.kmPorLitro > 0);
+              const consumoMedio = historicoValido.length > 0
+                ? historicoValido.reduce((total, item) => total + item.kmPorLitro, 0) / historicoValido.length
+                : 0;
+              const tankEstimate = estimateTankLevel({
+                tankCapacity,
+                events: trechos.map((t) => ({
+                  km: t.kmFinal,
+                  date: t.date,
+                  liters: t.liters,
+                  isFull: t.isFull !== false,
+                })),
+                avgKmPerLiter: consumoMedio,
+                simulatedKm: simulatedKm[vehicleId],
+              });
+              const currentFuel = tankEstimate.currentFuel;
+              const remainingKm = tankEstimate.remainingKm;
+              const lastFillLiters = tankEstimate.lastFillLiters;
+              const lastFillLabel = lastFillLiters > 0
+                ? lastFillLiters.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+                : null;
+              // Lista: mesma regra para todos — litros da última abastecida / capacidade.
+              // Só passa a mostrar o restante quando o KM do motorista é informado.
+              const headerLiters = tankEstimate.isSimulating ? currentFuel : lastFillLiters;
+              const headerPercent = tankCapacity > 0
+                ? Math.min(100, Math.max(0, (headerLiters / tankCapacity) * 100))
+                : 0;
 
               return (
                 <div key={vehicleId} className="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -421,25 +414,34 @@ export function Fuel() {
                     </div>
 
                     <div className="flex items-center gap-6">
-                      <div className="hidden lg:block w-40 text-right">
+                      <div className="hidden lg:block w-48 text-right">
                         <div className="flex justify-between items-end mb-1">
-                          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Nível do Tanque</span>
+                          <span
+                            className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold"
+                            title="Litros da última abastecida em relação à capacidade do tanque. Abra o cartão e informe o KM do motorista para ver quanto ainda dá para rodar."
+                          >
+                            {tankEstimate.isSimulating ? "Restante / Tanque" : "Última / Tanque"}
+                          </span>
                           <span className="text-xs font-bold text-gray-700">
-                            {tankCapacity > 0 ? `${currentFuel.toFixed(0)}L / ${tankCapacity}L` : "Sem litragem"}
+                            {tankCapacity > 0
+                              ? `${headerLiters.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}L / ${tankCapacity}L`
+                              : lastFillLabel
+                                ? `${lastFillLabel} L`
+                                : "Sem litragem"}
                           </span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5 overflow-hidden">
                           <div 
                             className={`h-full rounded-full transition-all duration-500 ${
-                              tankCapacity === 0 ? 'bg-gray-300' : fuelPercentage > 50 ? 'bg-emerald-500' : fuelPercentage > 20 ? 'bg-amber-500' : 'bg-red-500'
+                              tankCapacity === 0 ? 'bg-gray-300' : headerPercent > 50 ? 'bg-emerald-500' : headerPercent > 20 ? 'bg-amber-500' : 'bg-red-500'
                             }`} 
-                            style={{width: tankCapacity === 0 ? '100%' : `${fuelPercentage}%`}}
+                            style={{width: tankCapacity === 0 ? '100%' : `${headerPercent}%`}}
                           ></div>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-[10px] text-gray-400">Autonomia</span>
                           <span className="text-xs font-semibold text-gray-600">
-                            {tankCapacity > 0 ? `~${remainingKm.toFixed(0)} km` : "-"}
+                            {consumoMedio > 0 ? `~${remainingKm.toFixed(0)} km` : "-"}
                           </span>
                         </div>
                       </div>
@@ -477,47 +479,99 @@ export function Fuel() {
                   {isExpanded && (
                     <div className="border-t px-5 pb-5">
                       
-                      {/* SIMULADOR DE AUTONOMIA */}
-                      {tankCapacity > 0 && trechos.length > 0 && (
+                      {/* SIMULADOR: motorista na rua informa o KM e o sistema diz quanto ainda dá para rodar */}
+                      {trechos.length > 0 && (tankCapacity > 0 || tankEstimate.lastFillLiters > 0) && (
                         <div className="mt-5 mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
-                          <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-indigo-900 mb-1 flex items-center gap-2">
                             <Gauge className="w-4 h-4 text-indigo-600" />
-                            Simulador de Autonomia em Tempo Real
+                            Quanto ainda dá para rodar?
                           </h4>
+                          <p className="text-xs text-indigo-700/80 mb-3">
+                            Motorista na estrada passou o KM atual? Coloque abaixo para estimar a autonomia restante.
+                          </p>
+
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {tankCapacity > 0 && (
+                              <span className="text-xs bg-white border border-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">
+                                Tanque {tankCapacity.toLocaleString("pt-BR")} L
+                              </span>
+                            )}
+                            {lastFillLabel && (
+                              <span className="text-xs bg-white border border-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">
+                                Última abastecida {lastFillLabel} L
+                                {tankEstimate.lastFillIsFull ? " · tanque cheio" : " · parcial"}
+                              </span>
+                            )}
+                            {tankEstimate.lastRefuelKm > 0 && (
+                              <span className="text-xs bg-white border border-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">
+                                KM no posto {tankEstimate.lastRefuelKm.toLocaleString("pt-BR")}
+                              </span>
+                            )}
+                            {consumoMedio > 0 && (
+                              <span className="text-xs bg-white border border-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">
+                                Média {consumoMedio.toFixed(2)} km/l
+                              </span>
+                            )}
+                          </div>
+
+                          {consumoMedio <= 0 && (
+                            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                              Precisa de pelo menos dois abastecimentos com KM para calcular o consumo médio.
+                            </p>
+                          )}
+
                           <div className="flex flex-wrap items-end gap-6">
                             <div>
                               <label className="block text-xs font-semibold text-indigo-700 mb-1.5">
-                                KM Atual (Motorista na estrada)
+                                KM que o motorista passou agora
                               </label>
                               <div className="relative">
                                 <input 
                                   type="number" 
-                                  value={simulatedKm[vehicleId] !== undefined ? simulatedKm[vehicleId] : (vehicle?.current_km || "")} 
-                                  onChange={(e) => setSimulatedKm(prev => ({ ...prev, [vehicleId]: Number(e.target.value) }))}
-                                  className="pl-3 pr-10 py-2 border border-indigo-200 rounded-lg text-sm w-48 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm"
-                                  placeholder="Ex: 154000"
+                                  value={simulatedKm[vehicleId] !== undefined ? simulatedKm[vehicleId] : ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    setSimulatedKm(prev => {
+                                      const next = { ...prev };
+                                      if (raw === "") {
+                                        delete next[vehicleId];
+                                      } else {
+                                        next[vehicleId] = Number(raw);
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                  className="pl-3 pr-10 py-2 border border-indigo-200 rounded-lg text-sm w-52 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm"
+                                  placeholder={tankEstimate.lastRefuelKm ? String(tankEstimate.lastRefuelKm) : "Ex: 154000"}
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">KM</span>
                               </div>
                             </div>
                             
-                            {simulatedKm[vehicleId] > 0 && simulatedKm[vehicleId] > (trechos[trechos.length - 1]?.kmFinal || 0) && (
-                              <div className="flex flex-wrap gap-6 bg-white px-4 py-2 rounded-lg border border-indigo-100 shadow-sm">
+                            {tankEstimate.isSimulating ? (
+                              <div className="flex flex-wrap gap-6 bg-white px-4 py-3 rounded-lg border border-indigo-100 shadow-sm">
                                 <div>
                                   <p className="text-[10px] text-indigo-500 uppercase font-bold">Rodou desde o posto</p>
                                   <p className="text-sm font-bold text-gray-900">
-                                    {(simulatedKm[vehicleId] - trechos[trechos.length - 1].kmFinal).toLocaleString("pt-BR")} km
+                                    {tankEstimate.distanceSinceRefuel.toLocaleString("pt-BR")} km
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-indigo-500 uppercase font-bold">Combustível Restante</p>
+                                  <p className="text-[10px] text-indigo-500 uppercase font-bold">Combustível restante</p>
                                   <p className="text-sm font-bold text-gray-900">{currentFuel.toFixed(1)} L</p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-emerald-600 uppercase font-bold">Autonomia Restante</p>
-                                  <p className="text-sm font-bold text-emerald-600">~{remainingKm.toFixed(0)} km</p>
+                                  <p className="text-[10px] text-emerald-600 uppercase font-bold">Ainda dá para rodar</p>
+                                  <p className="text-lg font-bold text-emerald-600 leading-tight">
+                                    {consumoMedio > 0 ? `~${remainingKm.toFixed(0)} km` : "-"}
+                                  </p>
                                 </div>
                               </div>
+                            ) : (
+                              <p className="text-xs text-indigo-600 pb-2">
+                                Sem KM novo, a estimativa é logo após a última abastecida
+                                {consumoMedio > 0 ? ` (~${remainingKm.toFixed(0)} km de autonomia).` : "."}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -774,7 +828,7 @@ export function Fuel() {
         {canWrite && (
         <FuelModal
           open={fuelModalOpen}
-          onClose={() => { setFuelModalOpen(false); setEditingRecord(null); }}
+          onClose={() => { setFuelModalOpen(false); setEditingRecord(null); refetchVehicles(); }}
           editingRecord={editingRecord}
           vehicles={vehicles}
           addRecord={addRecord}

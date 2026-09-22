@@ -90,7 +90,15 @@ export function useFuelRecords(vehicleId?: string, dateFilter?: DateFilter | nul
 
       if (err) throw err;
       const updated = data?.[0];
-      if (updated) setRecords(prev => prev.map((r) => (r.id === id ? updated : r)));
+      if (updated) {
+        setRecords(prev => prev.map((r) => (r.id === id ? updated : r)));
+        if (updated.km_digital > 0 && updated.vehicle_id) {
+          await supabase
+            .from("vehicles")
+            .update({ current_km: updated.km_digital })
+            .eq("id", updated.vehicle_id);
+        }
+      }
       return updated;
     } catch (err) {
       throw err;
