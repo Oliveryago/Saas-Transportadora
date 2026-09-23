@@ -112,6 +112,7 @@ export interface Vehicle {
   crlv_url?: string | null;
   crlv_uploaded_at?: string | null;
   crlv_file_name?: string | null;
+  modelo_chassi_id?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -134,6 +135,7 @@ export interface Implement {
   crlv_url?: string | null;
   crlv_uploaded_at?: string | null;
   crlv_file_name?: string | null;
+  modelo_chassi_id?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -182,12 +184,31 @@ export interface FuelRecord {
   updated_at: string;
 }
 
+export type OrigemConsumoLote = "estoque_anterior" | "nota_atual";
+
+export interface ConsumoLoteParte {
+  lote_id: string;
+  item_id: string;
+  quantidade: number;
+  valor_unitario: number;
+  custo: number;
+  nota_fiscal_id?: string | null;
+  numero_nota?: string | null;
+  chave_acesso?: string | null;
+  fornecedor_nome?: string | null;
+  origem: OrigemConsumoLote;
+}
+
 export interface MaintenancePart {
   name: string;
   cost?: number;
   quantity?: number;
   origin?: "estoque" | "avulsa";
   item_id?: string;
+  qty_estoque?: number;
+  qty_compra?: number;
+  lotes?: ConsumoLoteParte[];
+  is_pneu?: boolean;
 }
 
 export interface MaintenanceRecord {

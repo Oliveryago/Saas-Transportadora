@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMaintenanceRecords } from "../hooks/useMaintenanceRecords";
 import { useVehicles } from "../hooks/useVehicles";
 import { useAuth } from "../contexts/AuthContext";
 import { useCompanySettings } from "../hooks/useCompanySettings";
-import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2 } from "lucide-react";
+import { Plus, ArrowLeft, LogOut, Trash2, Edit2, Wrench, FileText, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { generateMaintenanceOS } from "../services/documentGenerator";
 import { urlToDataURL } from "../services/companySettingsHelper";
 import MaintenanceModal from "../components/maintenance/MaintenanceModal";
@@ -14,6 +14,8 @@ import VehicleFilter from "../components/shared/VehicleFilter";
 import { DateFilterPicker } from "../components/shared/DateFilter";
 import { useDateFilter } from "../hooks/useDateFilter";
 import { formatLocalDate, parseLocalDate } from "../lib/utils/date";
+import { ComposicaoConsumoPecas } from "../components/maintenance/ComposicaoConsumoPecas";
+import { custoTotalPartes } from "../services/estoque/peps";
 
 export function Maintenance() {
     const { canWrite } = usePlanAccess("manutencao");
@@ -26,10 +28,10 @@ export function Maintenance() {
     const navigate = useNavigate();
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
-    
-    // Novos filtros
     const [typeFilter, setTypeFilter] = useState<string>("");
     const [descriptionFilter, setDescriptionFilter] = useState<string>("");
+    const [generatingOS, setGeneratingOS] = useState<string | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const getVehicleName = (id?: string) => {
         if (!id) return "-";
@@ -68,8 +70,6 @@ export function Maintenance() {
         refetch();
     }
 
-    const [generatingOS, setGeneratingOS] = useState<string | null>(null);
-
     async function handleGenerateOS(record: any) {
         setGeneratingOS(record.id);
         const v = vehicles.find(v => v.id === record.vehicle_id);
@@ -89,7 +89,7 @@ export function Maintenance() {
                 date: record.date,
                 type: typeLabels[record.type] || record.type,
                 description: record.description || "",
-                parts: (record.parts || []).map((p) => ({
+                parts: (record.parts || []).map((p: { name: string; quantity?: number; cost?: number }) => ({
                     name: p.name,
                     quantity: Number(p.quantity) > 0 ? Number(p.quantity) : 1,
                     cost: Number(p.cost) || 0,
@@ -123,9 +123,9 @@ export function Maintenance() {
                         <div className="hidden md:flex items-center gap-6">
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-4">
-                                    <VehicleFilter 
-                                        value={selectedVehicleId} 
-                                        onChange={setSelectedVehicleId} 
+                                    <VehicleFilter
+                                        value={selectedVehicleId}
+                                        onChange={setSelectedVehicleId}
                                     />
                                     <DateFilterPicker value={dateFilter} onChange={setDateFilter} />
                                 </div>
@@ -204,8 +204,12 @@ export function Maintenance() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {filteredRecords.map((record) => (
-                                        <tr key={record.id} className="hover:bg-gray-50">
+                                    {filteredRecords.map((record) => {
+                                        const pecas = record.parts || [];
+                                        const expanded = expandedId === record.id;
+                                        return (
+                                        <Fragment key={record.id}>
+                                        <tr className="hover:bg-gray-50">
                                             <td className="px-6 py-4 text-sm text-gray-900">
                                                 {formatLocalDate(record.date)}
                                             </td>
@@ -221,6 +225,16 @@ export function Maintenance() {
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <div className="flex gap-2">
+                                                    {pecas.some((p) => p.lotes?.length) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedId(expanded ? null : record.id)}
+                                                            className="text-gray-500 hover:text-gray-800"
+                                                            title="Ver composição do consumo"
+                                                        >
+                                                            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleGenerateOS(record)}
                                                         disabled={generatingOS === record.id}
@@ -244,7 +258,42 @@ export function Maintenance() {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                        {expanded && (
+                                            <tr className="bg-slate-50">
+                                                <td colSpan={6} className="px-6 py-3">
+                                                    <div className="space-y-3">
+                                                        {pecas.map((peca, idx) => (
+                                                            <div key={`${peca.item_id || peca.name}-${idx}`}>
+                                                                <p className="text-sm font-medium text-gray-800">
+                                                                    {peca.name}
+                                                                    {peca.qty_estoque || peca.qty_compra ? (
+                                                                        <span className="text-xs font-normal text-gray-500 ml-2">
+                                                                            {peca.qty_estoque ? `${peca.qty_estoque} do estoque` : ""}
+                                                                            {peca.qty_estoque && peca.qty_compra ? " · " : ""}
+                                                                            {peca.qty_compra ? `${peca.qty_compra} desta nota` : ""}
+                                                                        </span>
+                                                                    ) : null}
+                                                                    {peca.lotes?.length ? (
+                                                                        <span className="text-xs font-semibold text-orange-700 ml-2">
+                                                                            {formatBRL(custoTotalPartes(peca.lotes))}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </p>
+                                                                <ComposicaoConsumoPecas lotes={peca.lotes} />
+                                                                {!peca.lotes?.length && (
+                                                                    <p className="text-xs text-gray-400">
+                                                                        {peca.quantity || 1} × {formatBRL(peca.cost)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </Fragment>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

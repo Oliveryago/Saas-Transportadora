@@ -46,6 +46,28 @@ export async function preVisualizarNfe(xml: string, tenantId: string): Promise<N
     };
   });
 
+  const semCodigo = itensPreview.filter((item) => !item.item_id);
+  if (semCodigo.length > 0) {
+    const { data: catalogo } = await supabase
+      .from("itens_estoque")
+      .select("id, nome, ativo")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true);
+    const porNome = new Map<string, { id: string; nome: string }>();
+    for (const row of catalogo ?? []) {
+      const chave = normalizarNome(row.nome);
+      if (chave && !porNome.has(chave)) porNome.set(chave, { id: row.id, nome: row.nome });
+    }
+    for (const item of itensPreview) {
+      if (item.item_id) continue;
+      const achado = porNome.get(normalizarNome(item.descricao));
+      if (achado) {
+        item.item_id = achado.id;
+        item.item_nome = achado.nome;
+      }
+    }
+  }
+
   return {
     nota,
     itens: itensPreview,
@@ -271,7 +293,7 @@ export async function confirmarEntradaManual(
   };
 }
 
-function validarMarcacoesPneus(itens: Array<{ descricao: string; is_pneu: boolean; quantidade: number; marcacoes_fogo?: string[] }>) {
+export function validarMarcacoesPneus(itens: Array<{ descricao: string; is_pneu: boolean; quantidade: number; marcacoes_fogo?: string[] }>) {
   const vistas = new Set<string>();
   for (const item of itens) {
     if (!item.is_pneu) continue;
@@ -291,7 +313,7 @@ function validarMarcacoesPneus(itens: Array<{ descricao: string; is_pneu: boolea
   }
 }
 
-async function inserirUnidadesPneu(input: {
+export async function inserirUnidadesPneu(input: {
   tenantId: string;
   itemId: string;
   loteId: string;
@@ -358,7 +380,69 @@ async function notaJaImportada(tenantId: string, chaveAcesso: string): Promise<b
   return notaTemLotes(nota.id);
 }
 
-async function upsertCodigoFornecedor(
+export async function garantirNotaFiscal(
+  tenantId: string,
+  nota: {
+    chave_acesso: string;
+    numero_nota: string;
+    data_emissao: string;
+    fornecedor_nome: string;
+    fornecedor_cnpj: string;
+    valor_total: number;
+  },
+): Promise<{ id: string; temLotes: boolean }> {
+  const existente = await buscarNotaPorChave(tenantId, nota.chave_acesso);
+  if (existente) {
+    return { id: existente.id, temLotes: await notaTemLotes(existente.id) };
+  }
+
+  const { data, error } = await supabase
+    .from("notas_fiscais")
+    .insert({
+      tenant_id: tenantId,
+      chave_acesso: nota.chave_acesso,
+      numero_nota: nota.numero_nota || null,
+      fornecedor_nome: nota.fornecedor_nome || null,
+      fornecedor_cnpj: somenteDigitos(nota.fornecedor_cnpj) || null,
+      data_emissao: nota.data_emissao || null,
+      valor_total: nota.valor_total,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") {
+      const retry = await buscarNotaPorChave(tenantId, nota.chave_acesso);
+      if (retry) return { id: retry.id, temLotes: await notaTemLotes(retry.id) };
+    }
+    throw new NfeImportError(error.message);
+  }
+  return { id: data.id as string, temLotes: false };
+}
+
+export async function criarLoteEstoque(input: {
+  tenantId: string;
+  itemId: string;
+  notaFiscalId: string | null;
+  quantidade: number;
+  valorUnitario: number;
+}): Promise<string> {
+  const { data, error } = await supabase
+    .from("lotes_estoque")
+    .insert({
+      tenant_id: input.tenantId,
+      item_id: input.itemId,
+      nota_fiscal_id: input.notaFiscalId,
+      quantidade_recebida: input.quantidade,
+      quantidade_restante: input.quantidade,
+      valor_unitario: input.valorUnitario,
+    })
+    .select("id")
+    .single();
+  if (error) throw new NfeImportError(error.message);
+  return data.id as string;
+}
+
+export async function upsertCodigoFornecedor(
   tenantId: string,
   itemId: string,
   cnpj: string,
@@ -390,6 +474,10 @@ async function reverterImportacao(notaId: string, lotesIds: string[]) {
 
 function normalizarCodigo(codigo: string): string {
   return String(codigo || "").trim().toUpperCase();
+}
+
+function normalizarNome(nome: string): string {
+  return String(nome || "").trim().toUpperCase();
 }
 
 function unwrapItem(item: unknown): { id: string; nome: string; ativo?: boolean } | null {

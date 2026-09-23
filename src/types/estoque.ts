@@ -60,6 +60,20 @@ export interface ManutencaoItem {
   custo_alocado: number;
 }
 
+export interface LoteEstoque {
+  id: string;
+  tenant_id: string;
+  item_id: string;
+  nota_fiscal_id: string | null;
+  quantidade_recebida: number;
+  quantidade_restante: number;
+  valor_unitario: number;
+  criado_em: string;
+  numero_nota?: string | null;
+  chave_acesso?: string | null;
+  fornecedor_nome?: string | null;
+}
+
 export interface NovaEntradaInput {
   itemId: string;
   quantidade: number;
